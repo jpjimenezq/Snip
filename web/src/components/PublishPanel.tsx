@@ -18,21 +18,17 @@ import {
   type SocialPlatform,
 } from "@/lib/publish";
 
-const inputCls = "w-full rounded-lg border border-white/10 bg-bg px-3 py-2 text-sm outline-none focus:border-accent";
+const inputCls = "field";
 
 function PubStatus({ p }: { p: Publication }) {
-  const tone =
-    p.status === "published"
-      ? "bg-emerald-500/15 text-emerald-300 ring-emerald-500/30"
-      : p.status === "error"
-        ? "bg-red-500/15 text-red-300 ring-red-500/30"
-        : p.status === "queued"
-          ? "bg-zinc-500/15 text-zinc-300 ring-zinc-500/30"
-          : "bg-amber-500/15 text-amber-300 ring-amber-500/30";
+  const dot =
+    p.status === "published" ? "bg-ok" : p.status === "error" ? "bg-danger" : p.status === "queued" ? "bg-faint" : "bg-warn";
+  const working = p.status === "uploading" || p.status === "processing";
   return (
-    <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ring-1 ring-inset ${tone}`}>
+    <span className="inline-flex items-center gap-1.5 text-xs text-zinc-300">
+      <span className={`h-1.5 w-1.5 rounded-full ${dot} ${working ? "animate-rec" : ""}`} />
       {PUBLICATION_LABEL[p.status]}
-      {(p.status === "uploading" || p.status === "processing") && ` ${Math.round(p.progress * 100)}%`}
+      {working && <span className="timecode text-muted">{Math.round(p.progress * 100)}%</span>}
     </span>
   );
 }
@@ -137,18 +133,18 @@ export function PublishPanel({ clip, onPublished }: { clip: Clip; onPublished?: 
   return (
     <div className="space-y-4">
       {clip.status !== "rendered" && (
-        <p className="rounded-lg bg-sky-500/10 px-3 py-2 text-xs text-sky-300 ring-1 ring-sky-500/30">
+        <p className="rounded-lg border border-line bg-raised px-3 py-2 text-xs text-muted">
           Este clip aún no está renderizado: el worker lo renderizará primero y luego publicará (tu PC debe estar
           encendida con el worker corriendo).
         </p>
       )}
 
       {loading ? (
-        <p className="text-sm text-zinc-500">Cargando cuentas…</p>
+        <p className="text-sm text-muted">Cargando cuentas…</p>
       ) : accounts.length === 0 ? (
-        <div className="rounded-lg border border-dashed border-white/15 p-4 text-sm text-zinc-400">
+        <div className="rounded-lg border border-dashed border-line-strong p-4 text-sm text-muted">
           No tienes cuentas conectadas.{" "}
-          <Link href="/settings" className="text-accent underline">
+          <Link href="/settings" className="text-foreground underline">
             Conectar cuentas
           </Link>
         </div>
@@ -156,8 +152,8 @@ export function PublishPanel({ clip, onPublished }: { clip: Clip; onPublished?: 
         <>
           <div>
             <div className="mb-2 flex items-center justify-between">
-              <span className="text-xs text-zinc-400">Publicar en</span>
-              <label className="flex cursor-pointer items-center gap-2 text-xs text-zinc-300">
+              <span className="text-xs text-muted">Publicar en</span>
+              <label className="flex cursor-pointer items-center gap-2 text-xs text-muted">
                 <input
                   type="checkbox"
                   checked={allSelected}
@@ -173,13 +169,13 @@ export function PublishPanel({ clip, onPublished }: { clip: Clip; onPublished?: 
                 return (
                   <li key={a.id}>
                     <label
-                      className={`flex items-center gap-2 rounded-lg bg-white/5 px-3 py-2 text-sm ${disabled ? "opacity-50" : "cursor-pointer hover:bg-white/10"}`}
+                      className={`flex min-h-10 items-center gap-2.5 rounded-lg border border-line bg-bg px-3 py-2 text-sm ${disabled ? "opacity-50" : "cursor-pointer hover:bg-raised"}`}
                     >
                       <input type="checkbox" disabled={disabled} checked={selected.has(a.id)} onChange={() => toggle(a.id)} />
-                      <span className="w-20 shrink-0 text-xs text-zinc-400">{PLATFORM_LABEL[a.platform]}</span>
+                      <span className="w-20 shrink-0 text-xs text-muted">{PLATFORM_LABEL[a.platform]}</span>
                       <span className="min-w-0 flex-1 truncate">{a.name}</span>
                       {disabled && (
-                        <Link href="/settings" className="text-xs text-amber-300 underline">
+                        <Link href="/settings" className="text-xs text-warn underline">
                           {a.status === "expired" ? "Expirada: reconectar" : "Con error"}
                         </Link>
                       )}
@@ -191,8 +187,8 @@ export function PublishPanel({ clip, onPublished }: { clip: Clip; onPublished?: 
           </div>
 
           {platformsSelected.map((p) => (
-            <div key={p.id} className="space-y-2 rounded-lg border border-white/10 p-3">
-              <div className="text-xs font-medium text-zinc-300">{p.label}</div>
+            <div key={p.id} className="space-y-2 rounded-lg border border-line p-3">
+              <div className="text-xs font-medium text-foreground">{p.label}</div>
               {p.id === "youtube" && (
                 <input
                   className={inputCls}
@@ -214,8 +210,8 @@ export function PublishPanel({ clip, onPublished }: { clip: Clip; onPublished?: 
 
           <div className="flex flex-wrap items-center gap-3">
             <label className="flex items-center gap-2 text-sm">
-              <span className="text-xs text-zinc-400">Privacidad</span>
-              <select value={privacy} onChange={(e) => setPrivacy(e.target.value as Privacy)} className="rounded-lg border border-white/10 bg-bg px-2 py-2.5 text-sm">
+              <span className="text-xs text-muted">Privacidad</span>
+              <select value={privacy} onChange={(e) => setPrivacy(e.target.value as Privacy)} className="field w-auto min-w-36">
                 {(Object.keys(PRIVACY_LABEL) as Privacy[]).map((k) => (
                   <option key={k} value={k}>
                     {PRIVACY_LABEL[k]}
@@ -227,42 +223,42 @@ export function PublishPanel({ clip, onPublished }: { clip: Clip; onPublished?: 
               type="button"
               onClick={publish}
               disabled={sending || selectedAccounts.length === 0}
-              className="ml-auto h-10 rounded-lg bg-accent px-4 text-sm font-medium text-white hover:opacity-90 disabled:opacity-50"
+              className="btn btn-primary ml-auto"
             >
               {sending ? "Encolando…" : `Publicar${selectedAccounts.length ? ` (${selectedAccounts.length})` : ""}`}
             </button>
           </div>
-          <p className="text-xs text-zinc-500">
+          <p className="text-xs text-faint">
             TikTok sin auditoría de la app solo admite privado o enviar el video a tu bandeja para terminar de publicar.
             Instagram solo admite público; Facebook: &quot;Privado&quot; guarda un borrador.
           </p>
-          {error && <p className="text-sm text-red-300">{error}</p>}
+          {error && <p className="text-sm text-danger">{error}</p>}
         </>
       )}
 
       {pubs.length > 0 && (
         <div>
-          <h3 className="mb-2 text-xs text-zinc-400">Historial de publicaciones</h3>
+          <h3 className="mb-2 text-xs text-muted">Historial de publicaciones</h3>
           <ul className="space-y-2">
             {pubs.map((p) => (
-              <li key={p.id} className="rounded-lg bg-white/5 p-3 text-sm">
+              <li key={p.id} className="rounded-lg border border-line bg-bg p-3 text-sm">
                 <div className="flex items-center gap-2">
-                  <span className="text-xs text-zinc-400">{PLATFORM_LABEL[p.platform]}</span>
+                  <span className="text-xs text-muted">{PLATFORM_LABEL[p.platform]}</span>
                   <span className="min-w-0 flex-1 truncate">{accountName(p.account_id)}</span>
                   <PubStatus p={p} />
                   {p.external_url && (
-                    <a href={p.external_url} target="_blank" rel="noreferrer" className="text-xs text-accent underline">
+                    <a href={p.external_url} target="_blank" rel="noreferrer" className="text-xs text-foreground underline">
                       Abrir
                     </a>
                   )}
                 </div>
                 {isActivePublication(p) && p.status !== "queued" && (
-                  <div className="mt-2 h-1 overflow-hidden rounded bg-white/10">
-                    <div className="h-full bg-accent transition-all" style={{ width: `${Math.round(p.progress * 100)}%` }} />
+                  <div className="mt-2 h-1 overflow-hidden rounded-full bg-line-strong">
+                    <div className="h-full bg-foreground transition-all" style={{ width: `${Math.round(p.progress * 100)}%` }} />
                   </div>
                 )}
                 {p.error && (
-                  <p className={`mt-1 text-xs ${p.status === "error" ? "text-red-300" : "text-amber-300"}`}>{p.error}</p>
+                  <p className={`mt-1 text-xs ${p.status === "error" ? "text-danger" : "text-warn"}`}>{p.error}</p>
                 )}
               </li>
             ))}

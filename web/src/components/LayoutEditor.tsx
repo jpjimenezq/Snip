@@ -17,7 +17,6 @@ const PRESETS: { id: LayoutPreset; label: string }[] = [
   { id: "fit_blur", label: "Ajustar con fondo" },
   { id: "split", label: "Dividir" },
 ];
-const COLORS = ["#7c5cff", "#f59e0b"];
 const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
 
 interface Drag {
@@ -82,13 +81,14 @@ export function LayoutEditor({
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap gap-2">
+      <div className="flex flex-wrap gap-1.5" role="group" aria-label="Preset de encuadre">
         {PRESETS.map((p) => (
           <button
             key={p.id}
             type="button"
             onClick={() => onChange(changePreset({ ...layout, regions }, p.id, nat))}
-            className={`rounded-full px-3.5 py-2.5 text-sm ${layout.preset === p.id ? "bg-accent text-white" : "bg-white/5 text-zinc-300 hover:bg-white/10"}`}
+            aria-pressed={layout.preset === p.id}
+            className="chip min-h-10"
           >
             {p.label}
           </button>
@@ -96,7 +96,7 @@ export function LayoutEditor({
       </div>
 
       {layout.preset === "split" && (
-        <label className="flex items-center gap-3 text-sm text-zinc-400">
+        <label className="flex items-center gap-3 text-sm text-muted">
           Altura de arriba
           <input
             type="range"
@@ -105,9 +105,9 @@ export function LayoutEditor({
             step={0.01}
             value={ratio}
             onChange={(e) => onChange(changeRatio({ ...layout, regions }, parseFloat(e.target.value), nat))}
-            className="h-10 flex-1 accent-[#7c5cff]"
+            className="h-10 flex-1"
           />
-          <span className="w-10 text-right tabular-nums">{Math.round(ratio * 100)}%</span>
+          <span className="timecode w-10 text-right">{Math.round(ratio * 100)}%</span>
         </label>
       )}
 
@@ -115,7 +115,7 @@ export function LayoutEditor({
         <div className="min-w-0 flex-1">
           <div
             ref={box}
-            className="relative w-full select-none overflow-hidden rounded-lg bg-black"
+            className="relative w-full select-none overflow-hidden rounded-lg border border-line bg-black"
             style={{ aspectRatio: `${nat.w} / ${nat.h}` }}
           >
             {frameUrl ? (
@@ -131,7 +131,7 @@ export function LayoutEditor({
                 }}
               />
             ) : (
-              <div className="absolute inset-0 flex items-center justify-center text-sm text-zinc-600">
+              <div className="absolute inset-0 flex items-center justify-center text-sm text-faint">
                 Sin frame disponible
               </div>
             )}
@@ -149,13 +149,13 @@ export function LayoutEditor({
                     top: `${r.y * 100}%`,
                     width: `${r.w * 100}%`,
                     height: `${r.h * 100}%`,
-                    border: `2px solid ${COLORS[i]}`,
-                    background: `${COLORS[i]}22`,
+                    border: "1.5px solid rgba(255,255,255,0.9)",
+                    background: "rgba(255,255,255,0.06)",
                     boxShadow: "0 0 0 9999px rgba(0,0,0,0.45)",
                   }}
                 >
                   {layout.preset === "split" && (
-                    <span className="absolute left-1 top-1 rounded px-1 text-[10px] font-bold text-black" style={{ background: COLORS[i] }}>
+                    <span className="absolute left-1 top-1 rounded bg-black/75 px-1 text-[10px] font-medium text-foreground">
                       {i === 0 ? "Arriba" : "Abajo"}
                     </span>
                   )}
@@ -166,12 +166,12 @@ export function LayoutEditor({
                     onPointerCancel={up}
                     className="absolute bottom-0 right-0 flex h-11 w-11 cursor-nwse-resize touch-none items-end justify-end p-1"
                   >
-                    <span className="h-6 w-6 rounded-full border-2 border-white" style={{ background: COLORS[i] }} />
+                    <span className="h-4 w-4 rounded-[3px] border border-black/60 bg-white" />
                   </div>
                 </div>
               ))}
           </div>
-          <p className="mt-2 text-xs text-zinc-500">
+          <p className="mt-2 text-xs text-faint">
             {layout.preset === "fit_blur"
               ? "El video completo se centra con el mismo video desenfocado de fondo."
               : "Arrastra el recuadro para moverlo y usa el círculo de la esquina para cambiar su tamaño."}
@@ -205,7 +205,7 @@ function MockPreview({
 }) {
   return (
     <div className="mx-auto w-36 shrink-0 sm:mx-0 sm:w-40">
-      <div className="relative aspect-[9/16] w-full overflow-hidden rounded-xl border border-white/20 bg-black">
+      <div className="relative aspect-[9/16] w-full overflow-hidden rounded-xl border border-line-strong bg-black">
         {frameUrl && layout.preset === "fill" && regions[0] && (
           <div className="absolute inset-0" style={cropStyle(frameUrl, regions[0])} />
         )}
@@ -225,7 +225,7 @@ function MockPreview({
           </>
         )}
       </div>
-      <p className="mt-1 text-center text-xs text-zinc-500">Resultado 9:16</p>
+      <p className="mt-1 text-center text-xs text-faint">Resultado 9:16</p>
     </div>
   );
 }

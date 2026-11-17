@@ -7,27 +7,32 @@ import type { Clip } from "@/lib/types";
 import { formatDuration } from "@/lib/time";
 import { useSignedUrl } from "@/lib/useSignedUrl";
 import { ScoreBadge, StatusChip } from "./Badges";
+import { LinkArrow, SectionHeader } from "./ui";
 
 function MiniClip({ clip }: { clip: Clip }) {
   const frameUrl = useSignedUrl(clip.frame_path);
   return (
-    <Link
-      href={`/clips/${clip.id}`}
-      className="block w-44 shrink-0 snap-start overflow-hidden rounded-xl border border-white/10 bg-surface transition hover:border-accent/60 sm:w-52"
-    >
-      <div className="relative aspect-video bg-black">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        {frameUrl && <img src={frameUrl} alt="" className="absolute inset-0 h-full w-full object-cover" />}
-        <div className="absolute left-1.5 top-1.5">
+    <Link href={`/clips/${clip.id}`} className="group block w-36 shrink-0 snap-start sm:w-44">
+      <div className="relative aspect-[9/16] overflow-hidden rounded-xl border border-line bg-raised transition-colors group-hover:border-line-strong">
+        {frameUrl && (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={frameUrl} alt="" className="absolute inset-0 h-full w-full object-cover" />
+        )}
+        <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/10 to-transparent" />
+        <div className="absolute left-2 top-2">
           <ScoreBadge score={clip.score} />
         </div>
-        <span className="absolute bottom-1.5 right-1.5 rounded bg-black/70 px-1.5 py-0.5 text-[11px]">
+        <span className="timecode absolute right-2 top-2 rounded-md bg-black/75 px-1.5 py-0.5 text-[11px] text-zinc-100">
           {formatDuration(clip.end_s - clip.start_s)}
         </span>
-      </div>
-      <div className="space-y-1.5 p-2.5">
-        <p className="line-clamp-2 text-sm font-medium leading-snug">{clip.title || "Clip sin título"}</p>
-        <StatusChip status={clip.status} kind="clip" />
+        <div className="absolute inset-x-2.5 bottom-2.5">
+          <p className="line-clamp-3 text-[13px] font-medium leading-snug text-white">
+            {clip.title || "Clip sin título"}
+          </p>
+          <div className="mt-1.5">
+            <StatusChip status={clip.status} kind="clip" />
+          </div>
+        </div>
       </div>
     </Link>
   );
@@ -68,12 +73,7 @@ export function RecentClips() {
   if (clips.length === 0) return null;
   return (
     <section>
-      <div className="mb-3 flex items-center justify-between">
-        <h2 className="text-sm font-semibold uppercase tracking-wider text-zinc-500">Últimos clips</h2>
-        <Link href="/library" className="flex h-10 items-center text-sm text-accent hover:underline">
-          Ver biblioteca →
-        </Link>
-      </div>
+      <SectionHeader title="Clips recientes" action={<LinkArrow href="/library">Ver biblioteca</LinkArrow>} />
       <div className="-mx-4 flex snap-x gap-3 overflow-x-auto px-4 pb-2">
         {clips.map((c) => (
           <MiniClip key={c.id} clip={c} />

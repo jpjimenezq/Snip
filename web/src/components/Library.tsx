@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import type { Clip, ClipOrigin } from "@/lib/types";
 import { ClipCard } from "./ClipCard";
+import { EmptySteps, Notice } from "./ui";
 
 type StatusFilter = "all" | "suggested" | "rendered" | "published";
 type OriginFilter = "all" | ClipOrigin;
@@ -37,17 +38,15 @@ function Pills<T extends string>({
 }) {
   return (
     <div role="group" aria-label={label} className="flex items-center gap-2">
-      <span className="hidden shrink-0 text-xs text-zinc-500 sm:block">{label}</span>
-      <div className="-mx-4 flex gap-2 overflow-x-auto px-4 sm:mx-0 sm:px-0">
+      <span className="hidden shrink-0 text-xs text-faint sm:block">{label}</span>
+      <div className="no-scrollbar -mx-4 flex gap-1.5 overflow-x-auto px-4 sm:mx-0 sm:px-0">
         {options.map((o) => (
           <button
             key={o.id}
             type="button"
             aria-pressed={value === o.id}
             onClick={() => onChange(o.id)}
-            className={`h-10 shrink-0 rounded-full px-3.5 text-sm ${
-              value === o.id ? "bg-accent text-white" : "bg-white/5 text-zinc-300 hover:bg-white/10"
-            }`}
+            className="chip shrink-0"
           >
             {o.label}
           </button>
@@ -127,44 +126,55 @@ export function Library() {
     );
   }, [clips, status, origin, q, sort, published]);
 
-  if (error) return <p className="text-sm text-red-400">No se pudieron cargar los clips: {error}</p>;
-  if (!clips) return <p className="text-sm text-zinc-500">Cargando...</p>;
+  if (error) return <Notice tone="error">No se pudieron cargar los clips: {error}</Notice>;
+  if (!clips) return <p className="text-sm text-muted">Cargando...</p>;
 
   return (
     <div className="space-y-4">
-      <div className="space-y-3">
-        <div className="flex flex-col gap-3 sm:flex-row">
+      <div className="panel space-y-3 p-3">
+        <div className="flex flex-col gap-2 sm:flex-row">
           <input
             type="search"
             value={q}
             onChange={(e) => setQ(e.target.value)}
             placeholder="Buscar por título..."
             aria-label="Buscar clips por título"
-            className="h-11 w-full min-w-0 rounded-lg border border-white/10 bg-surface px-3 sm:flex-1 outline-none focus:border-accent"
+            className="field min-w-0 sm:flex-1"
           />
           <select
             value={sort}
             onChange={(e) => setSort(e.target.value as Sort)}
             aria-label="Ordenar clips"
-            className="h-11 rounded-lg border border-white/10 bg-surface px-3 outline-none focus:border-accent"
+            className="field sm:w-48"
           >
             <option value="recent">Más recientes</option>
             <option value="score">Mejor puntaje</option>
           </select>
         </div>
-        <Pills label="Estado" value={status} options={STATUS} onChange={setStatus} />
-        <Pills label="Origen" value={origin} options={ORIGIN} onChange={setOrigin} />
+        <div className="flex flex-col gap-2 lg:flex-row lg:items-center lg:gap-6">
+          <Pills label="Estado" value={status} options={STATUS} onChange={setStatus} />
+          <Pills label="Origen" value={origin} options={ORIGIN} onChange={setOrigin} />
+        </div>
       </div>
 
-      <p className="text-xs text-zinc-500" aria-live="polite">
+      <p className="timecode text-xs text-muted" aria-live="polite">
         {visible.length} {visible.length === 1 ? "clip" : "clips"}
         {visible.length !== clips.length ? ` de ${clips.length}` : ""}
       </p>
 
       {visible.length === 0 ? (
-        <p className="rounded-xl border border-dashed border-white/10 p-8 text-center text-sm text-zinc-500">
-          {clips.length === 0 ? "Todavía no hay clips. Procesa una fuente para generar sugerencias." : "Ningún clip coincide con los filtros."}
-        </p>
+        clips.length === 0 ? (
+          <EmptySteps
+            title="Todavía no hay clips"
+            steps={[
+              "Pega el enlace de un video o directo en Inicio.",
+              "Snip lo transcribe y sugiere los mejores momentos.",
+              "Revisa, ajusta y exporta tus clips verticales.",
+            ]}
+          />
+        ) : (
+          <div className="panel p-8 text-center text-sm text-muted">Ningún clip coincide con los filtros.</div>
+        )
       ) : (
         <div className="grid grid-cols-2 gap-3 md:grid-cols-3 md:gap-4 xl:grid-cols-4">
           {visible.map((c) => (

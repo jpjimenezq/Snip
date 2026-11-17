@@ -36,37 +36,28 @@ export function ManualClipPanel({ sourceId, disabled }: { sourceId: string; disa
   }
 
   return (
-    <form onSubmit={submit} className="space-y-3 rounded-xl border border-white/10 bg-surface p-4">
-      <h2 className="font-semibold">Clip manual</h2>
+    <form onSubmit={submit} className="panel space-y-4 p-4">
+      <h2 className="text-sm font-semibold">Clip manual</h2>
       <div>
-        <label className="mb-1 block text-xs text-zinc-400">Momento (ss, mm:ss o hh:mm:ss)</label>
+        <label className="mb-1.5 block text-xs text-muted">Momento (ss, mm:ss o hh:mm:ss)</label>
         <input
           value={ts}
           onChange={(e) => setTs(e.target.value)}
           placeholder="12:34"
           inputMode="numeric"
-          className="h-11 w-full rounded-lg border border-white/10 bg-bg px-3 outline-none focus:border-accent"
+          className="field timecode"
         />
-        <p className="mt-1 text-xs text-zinc-500">El clip termina en ese momento y empieza la duración elegida antes.</p>
+        <p className="mt-1.5 text-xs text-faint">El clip termina en ese momento y empieza la duración elegida antes.</p>
       </div>
       <div>
-        <label className="mb-1 block text-xs text-zinc-400">Duración</label>
-        <div className="flex flex-wrap gap-2">
+        <label className="mb-1.5 block text-xs text-muted">Duración</label>
+        <div className="flex flex-wrap gap-1.5">
           {DURATIONS.map((d) => (
-            <button
-              type="button"
-              key={d}
-              onClick={() => setDuration(d)}
-              className={`rounded-full px-3.5 py-2.5 text-sm ${duration === d ? "bg-accent text-white" : "bg-white/5 text-zinc-300 hover:bg-white/10"}`}
-            >
+            <button type="button" key={d} onClick={() => setDuration(d)} aria-pressed={duration === d} className="chip timecode min-h-10">
               {d} s
             </button>
           ))}
-          <button
-            type="button"
-            onClick={() => setDuration("custom")}
-            className={`rounded-full px-3.5 py-2.5 text-sm ${duration === "custom" ? "bg-accent text-white" : "bg-white/5 text-zinc-300 hover:bg-white/10"}`}
-          >
+          <button type="button" onClick={() => setDuration("custom")} aria-pressed={duration === "custom"} className="chip min-h-10">
             Personalizado
           </button>
         </div>
@@ -77,17 +68,15 @@ export function ManualClipPanel({ sourceId, disabled }: { sourceId: string; disa
             step={1}
             value={custom}
             onChange={(e) => setCustom(e.target.value)}
-            className="mt-2 h-11 w-32 rounded-lg border border-white/10 bg-bg px-3 outline-none focus:border-accent"
+            aria-label="Duración en segundos"
+            className="field timecode mt-2 w-32"
           />
         )}
       </div>
-      <button
-        disabled={busy || disabled || !ts.trim()}
-        className="h-11 w-full rounded-lg bg-accent font-semibold text-white hover:brightness-110 disabled:opacity-50"
-      >
+      <button disabled={busy || disabled || !ts.trim()} className="btn btn-primary w-full">
         {busy ? "Creando..." : "Crear clip"}
       </button>
-      {msg && <p className={`text-sm ${msg.ok ? "text-emerald-400" : "text-red-400"}`}>{msg.text}</p>}
+      {msg && <p className={`text-sm ${msg.ok ? "text-ok" : "text-danger"}`}>{msg.text}</p>}
     </form>
   );
 }

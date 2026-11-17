@@ -23,7 +23,7 @@ function CopyButton({ text }: { text: string }) {
     }
   }
   return (
-    <button type="button" onClick={copy} className="min-h-10 rounded-md bg-white/5 px-3 text-xs text-zinc-300 hover:bg-white/10">
+    <button type="button" onClick={copy} className="btn btn-ghost btn-sm min-h-10 text-xs">
       {done ? "Copiado" : "Copiar"}
     </button>
   );
@@ -42,11 +42,11 @@ function Field({
   multiline?: boolean;
   rows?: number;
 }) {
-  const cls = "w-full rounded-lg border border-white/10 bg-bg px-3 py-2.5 text-sm outline-none focus:border-accent";
+  const cls = "field";
   return (
     <div>
-      <div className="mb-1 flex items-center justify-between">
-        <label className="text-xs text-zinc-400">{label}</label>
+      <div className="mb-0.5 flex items-center justify-between">
+        <label className="text-xs text-muted">{label}</label>
         <CopyButton text={value} />
       </div>
       {multiline ? (
@@ -94,13 +94,14 @@ export function CopiesEditor({ copies, onChange }: { copies: Copies; onChange: (
 
   return (
     <div className="space-y-3">
-      <div className="flex gap-1 overflow-x-auto">
+      <div className="no-scrollbar flex gap-1.5 overflow-x-auto" role="group" aria-label="Red social">
         {NETS.map((n) => (
           <button
             key={n.id}
             type="button"
             onClick={() => setTab(n.id)}
-            className={`rounded-lg px-3.5 py-2.5 text-sm ${tab === n.id ? "bg-accent text-white" : "bg-white/5 text-zinc-300 hover:bg-white/10"}`}
+            aria-pressed={tab === n.id}
+            className="chip min-h-10 shrink-0"
           >
             {n.label}
           </button>

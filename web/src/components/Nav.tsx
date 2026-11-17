@@ -3,11 +3,12 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { IS_DEMO, createClient } from "@/lib/supabase/client";
+import { LogoMark, RecDot, Wordmark } from "./ui";
 
 const LINKS = [
-  { href: "/", label: "Clips" },
+  { href: "/", label: "Inicio" },
   { href: "/library", label: "Biblioteca" },
-  { href: "/live", label: "En vivo" },
+  { href: "/live", label: "En vivo", live: true },
   { href: "/settings", label: "Cuentas" },
 ];
 
@@ -24,35 +25,38 @@ export function Nav() {
       ? pathname === "/" || pathname.startsWith("/sources") || pathname.startsWith("/clips")
       : pathname.startsWith(href);
   return (
-    <header className="sticky top-0 z-30 border-b border-white/10 bg-bg/80 backdrop-blur">
-      <div className="mx-auto flex h-14 max-w-6xl items-center gap-2 px-4 sm:gap-3">
-        <Link href="/" className="flex h-10 shrink-0 items-center gap-2 text-lg font-bold tracking-tight">
-          <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-accent text-sm text-white">✂</span>
-          <span className="hidden sm:inline">Snip</span>
+    <header className="sticky top-0 z-30 border-b border-line bg-bg/85 backdrop-blur-md">
+      <div className="mx-auto flex h-14 max-w-6xl items-center gap-3 px-4 sm:gap-6">
+        <Link href="/" className="flex h-10 shrink-0 items-center gap-2" aria-label="Snip, inicio">
+          <LogoMark />
+          <span className="hidden sm:inline">
+            <Wordmark />
+          </span>
           {IS_DEMO && (
-            <span className="rounded-md bg-amber-400/15 px-2 py-0.5 text-xs font-semibold text-amber-300">
-              DEMO
+            <span className="rounded border border-line-strong px-1.5 text-[10px] font-medium uppercase text-muted">
+              Demo
             </span>
           )}
         </Link>
-        <nav aria-label="Principal" className="no-scrollbar flex min-w-0 flex-1 items-center gap-1 overflow-x-auto">
-          {LINKS.map((l) => (
-            <Link
-              key={l.href}
-              href={l.href}
-              className={`flex h-10 shrink-0 items-center rounded-lg px-3 text-sm transition ${
-                active(l.href) ? "bg-white/10 text-zinc-100" : "text-zinc-400 hover:bg-white/5 hover:text-zinc-100"
-              }`}
-            >
-              {l.label}
-            </Link>
-          ))}
+        <nav aria-label="Principal" className="no-scrollbar flex min-w-0 flex-1 items-center gap-0.5 overflow-x-auto">
+          {LINKS.map((l) => {
+            const on = active(l.href);
+            return (
+              <Link
+                key={l.href}
+                href={l.href}
+                aria-current={on ? "page" : undefined}
+                className={`flex h-9 shrink-0 items-center gap-1.5 rounded-lg px-3 text-sm transition-colors ${
+                  on ? "bg-raised font-medium text-foreground" : "text-muted hover:text-foreground"
+                }`}
+              >
+                {l.live && <RecDot className="h-1.5 w-1.5" />}
+                {l.label}
+              </Link>
+            );
+          })}
         </nav>
-        <button
-          onClick={logout}
-          hidden={IS_DEMO}
-          className="h-10 shrink-0 rounded-lg px-3 text-sm text-zinc-400 hover:bg-white/5 hover:text-zinc-100"
-        >
+        <button onClick={logout} hidden={IS_DEMO} className="btn btn-ghost btn-sm shrink-0">
           Salir
         </button>
       </div>

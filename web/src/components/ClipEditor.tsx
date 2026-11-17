@@ -6,10 +6,11 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { createJob, deleteClip } from "@/lib/actions";
 import { normalizeLayout, toContract } from "@/lib/layout";
 import { createClient } from "@/lib/supabase/client";
-import { formatTime } from "@/lib/time";
+import { formatDuration, formatTime } from "@/lib/time";
 import type { Clip, Copies, Layout, SubtitleStyle, TranscriptSegment } from "@/lib/types";
 import { getSignedUrl, useSignedUrl } from "@/lib/useSignedUrl";
-import { OriginBadge, ProgressBar, ScoreBadge, StatusChip } from "./Badges";
+import { ProgressBar, StatusChip, originLabel, scoreColor } from "./Badges";
+import { Stat } from "./ui";
 import { ConfirmDialog, TrashIcon } from "./ConfirmDialog";
 import { CopiesEditor } from "./CopiesEditor";
 import { PublishPanel } from "./PublishPanel";
@@ -22,16 +23,25 @@ const SUBTITLES: { id: SubtitleStyle; label: string }[] = [
   { id: "none", label: "Sin subtítulos" },
 ];
 
-const card = "rounded-xl border border-white/10 bg-surface p-4";
-const btn = "rounded-lg px-4 py-2.5 text-sm font-semibold disabled:opacity-50";
+function Panel({ title, action, children }: { title: string; action?: React.ReactNode; children: React.ReactNode }) {
+  return (
+    <section className="panel p-4">
+      <div className="mb-3 flex min-h-6 flex-wrap items-center justify-between gap-2">
+        <h2 className="text-sm font-semibold">{title}</h2>
+        {action}
+      </div>
+      {children}
+    </section>
+  );
+}
 
 function NumberStepper({ label, value, onChange }: { label: string; value: number; onChange: (v: number) => void }) {
   const step = (d: number) => onChange(Math.max(0, Math.round((value + d) * 100) / 100));
   return (
     <div>
-      <label className="mb-1 block text-xs text-zinc-400">{label}</label>
+      <label className="mb-1.5 block text-xs text-muted">{label}</label>
       <div className="flex items-center gap-1">
-        <button type="button" onClick={() => step(-0.5)} className="h-10 w-10 rounded-lg bg-white/5 hover:bg-white/10">
+        <button type="button" onClick={() => step(-0.5)} aria-label={`${label} menos 0,5`} className="btn btn-secondary h-10 w-10 shrink-0 px-0">
           −
         </button>
         <input
@@ -40,13 +50,13 @@ function NumberStepper({ label, value, onChange }: { label: string; value: numbe
           min={0}
           value={Number.isFinite(value) ? value : ""}
           onChange={(e) => onChange(parseFloat(e.target.value))}
-          className="h-10 w-full min-w-0 rounded-lg border border-white/10 bg-bg px-2 text-center outline-none focus:border-accent"
+          className="field timecode h-10 min-w-0 px-2 text-center"
         />
-        <button type="button" onClick={() => step(0.5)} className="h-10 w-10 rounded-lg bg-white/5 hover:bg-white/10">
+        <button type="button" onClick={() => step(0.5)} aria-label={`${label} más 0,5`} className="btn btn-secondary h-10 w-10 shrink-0 px-0">
           +
         </button>
       </div>
-      <p className="mt-1 text-center text-xs text-zinc-500">{Number.isFinite(value) ? formatTime(value) : "—"}</p>
+      <p className="timecode mt-1 text-center text-xs text-faint">{Number.isFinite(value) ? formatTime(value) : "—"}</p>
     </div>
   );
 }
@@ -160,12 +170,12 @@ export function ClipEditor({ id }: { id: string }) {
     return () => clearInterval(t);
   }, [previewUrl]);
 
-  if (!loaded) return <p className="text-sm text-zinc-500">Cargando...</p>;
+  if (!loaded) return <p className="text-sm text-muted">Cargando...</p>;
   if (!clip)
     return (
-      <p className="text-sm text-zinc-400">
+      <p className="text-sm text-muted">
         Clip no encontrado.{" "}
-        <Link href="/" className="text-accent underline">
+        <Link href="/" className="text-foreground underline">
           Volver
         </Link>
       </p>
@@ -243,32 +253,46 @@ export function ClipEditor({ id }: { id: string }) {
       return "Copies guardados.";
     });
 
+  const dur = end - start;
   return (
-    <div className="space-y-6">
-      <div>
-        <Link href={`/sources/${clip.source_id}`} className="inline-flex h-10 items-center text-sm text-zinc-500 hover:text-zinc-300">
+    <div className="space-y-5">
+      <header>
+        <Link href={`/sources/${clip.source_id}`} className="inline-flex h-10 items-center text-sm text-muted hover:text-foreground">
           ← Fuente
         </Link>
-        <div className="mt-2 flex flex-wrap items-center gap-2">
-          <ScoreBadge score={clip.score} />
-          <OriginBadge origin={clip.origin} />
-          <StatusChip status={clip.status} kind="clip" />
-        </div>
-        <h1 className="mt-2 text-xl font-bold leading-snug">{clip.title || "Clip sin título"}</h1>
-        {clip.hook && <p className="text-sm text-zinc-400">{clip.hook}</p>}
-        {clip.reason && <p className="mt-1 text-xs text-zinc-500">{clip.reason}</p>}
+        <h1 className="font-display mt-1 text-2xl">{clip.title || "Clip sin título"}</h1>
+        {clip.hook && <p className="mt-1.5 max-w-3xl text-sm text-muted">{clip.hook}</p>}
+        {clip.reason && <p className="mt-1 max-w-3xl text-xs text-faint">{clip.reason}</p>}
+        <dl className="mt-4 grid grid-cols-2 gap-x-6 gap-y-3 sm:grid-cols-3 lg:grid-cols-5">
+          <Stat
+            label="Puntaje viral"
+            value={
+              clip.score != null ? (
+                <span className={`font-semibold ${scoreColor(clip.score)}`}>
+                  {clip.score}
+                  <span className="font-normal text-faint">/100</span>
+                </span>
+              ) : (
+                "—"
+              )
+            }
+          />
+          <Stat label="Duración" value={Number.isFinite(dur) ? formatDuration(dur) : "—"} />
+          <Stat label="Rango" value={`${formatTime(clip.start_s)} – ${formatTime(clip.end_s)}`} />
+          <Stat label="Origen" value={originLabel(clip.origin)} />
+          <Stat label="Estado" value={<StatusChip status={clip.status} kind="clip" />} />
+        </dl>
         {rendering && (
           <div className="mt-3 max-w-md">
             <ProgressBar value={clip.progress} />
           </div>
         )}
-        {clip.error && <p className="mt-2 text-sm text-red-400">{clip.error}</p>}
-      </div>
+        {clip.error && <p className="mt-2 text-sm text-danger">{clip.error}</p>}
+      </header>
 
-      <div className="grid gap-6 lg:grid-cols-2">
-        <div className="space-y-6">
-          <section className={card}>
-            <h2 className="mb-3 font-semibold">Vista previa</h2>
+      <div className="grid grid-cols-[minmax(0,1fr)] items-start gap-5 lg:grid-cols-2">
+        <div className="space-y-5">
+          <Panel title="Vista previa">
             {previewUrl ? (
               <>
                 <video
@@ -287,7 +311,7 @@ export function ClipEditor({ id }: { id: string }) {
                   className="aspect-video w-full rounded-lg bg-black"
                 />
                 {outside && (
-                  <p className="mt-2 rounded-lg bg-amber-500/10 p-2 text-xs text-amber-300">
+                  <p className="mt-2 rounded-lg border border-line bg-raised p-2 text-xs text-warn">
                     La vista previa no cubre el nuevo rango; el clip final sí lo tendrá.
                     {!hasOverlap && " Se muestra la vista previa original completa."}
                   </p>
@@ -306,134 +330,128 @@ export function ClipEditor({ id }: { id: string }) {
                 />
               </>
             ) : (
-              <p className="text-sm text-zinc-500">Sin vista previa disponible.</p>
+              <p className="text-sm text-muted">Sin vista previa disponible.</p>
             )}
             {outputPath && (
-              <div className="mt-4">
-                <h3 className="mb-2 text-sm font-semibold text-zinc-300">Clip final (1080x1920)</h3>
+              <div className="mt-4 border-t border-line pt-4">
+                <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+                  <h3 className="text-sm font-semibold">Clip final <span className="timecode font-normal text-muted">1080x1920</span></h3>
+                  {finalDl && (
+                    <a href={finalDl} download className="btn btn-secondary btn-sm">
+                      Descargar
+                    </a>
+                  )}
+                </div>
                 {finalUrl ? (
                   <video src={finalUrl} controls playsInline className="mx-auto max-h-[60vh] rounded-lg bg-black" />
                 ) : (
-                  <p className="text-sm text-zinc-500">Cargando...</p>
-                )}
-                {finalDl && (
-                  <a href={finalDl} download className={`${btn} mt-3 inline-block bg-emerald-500 text-emerald-950 hover:brightness-110`}>
-                    Descargar
-                  </a>
+                  <p className="text-sm text-muted">Cargando...</p>
                 )}
               </div>
             )}
-          </section>
+          </Panel>
 
-          <section className={card}>
-            <h2 className="mb-3 font-semibold">Recorte fino</h2>
+          <Panel
+            title="Recorte fino"
+            action={
+              <span className="timecode text-xs text-muted">
+                Duración {Number.isFinite(dur) ? dur.toFixed(1) : "—"} s
+              </span>
+            }
+          >
             <div className="grid grid-cols-2 gap-3">
               <NumberStepper label="Inicio (s)" value={start} onChange={setStart} />
               <NumberStepper label="Fin (s)" value={end} onChange={setEnd} />
             </div>
-            <p className="mt-2 text-xs text-zinc-500">
-              Duración: {Number.isFinite(end - start) ? (end - start).toFixed(1) : "—"} s
-            </p>
-          </section>
+          </Panel>
 
-          <section className={card}>
-            <h2 className="mb-3 font-semibold">Transcripción del clip</h2>
+          <Panel title="Transcripción del clip">
             {snippet.length === 0 ? (
-              <p className="text-sm text-zinc-500">Sin transcripción para este rango.</p>
+              <p className="text-sm text-muted">Sin transcripción para este rango.</p>
             ) : (
-              <div className="max-h-56 space-y-1 overflow-y-auto text-sm text-zinc-300">
+              <div className="max-h-56 space-y-1.5 overflow-y-auto text-sm text-zinc-300">
                 {snippet.map((s, i) => (
                   <p key={i}>
-                    <span className="mr-2 text-xs text-zinc-500">{formatTime(s.start)}</span>
+                    <span className="timecode mr-2 text-xs text-faint">{formatTime(s.start)}</span>
                     {s.text}
                   </p>
                 ))}
               </div>
             )}
-          </section>
+          </Panel>
         </div>
 
-        <div className="space-y-6">
-          <section className={card}>
-            <h2 className="mb-3 font-semibold">Encuadre vertical</h2>
+        <div className="space-y-5">
+          <Panel title="Encuadre vertical">
             <LayoutEditor frameUrl={frameUrl} layout={layout} onChange={setLayout} />
-            <div className="mt-5 border-t border-white/10 pt-4">
-              <ZoomEditor
-                layout={layout}
-                onChange={setLayout}
-                duration={end - start}
-                getCurrentTime={() => {
-                  const v = videoRef.current;
-                  // Relativo al NUEVO inicio del clip.
-                  return v ? Math.max(0, v.currentTime + o.start - start) : null;
-                }}
-              />
-            </div>
-          </section>
+          </Panel>
 
-          <section className={card}>
-            <h2 className="mb-3 font-semibold">Subtítulos</h2>
-            <div className="flex flex-wrap gap-2">
+          <Panel title="Zoom y seguimiento">
+            <ZoomEditor
+              layout={layout}
+              onChange={setLayout}
+              duration={end - start}
+              getCurrentTime={() => {
+                const v = videoRef.current;
+                // Relativo al NUEVO inicio del clip.
+                return v ? Math.max(0, v.currentTime + o.start - start) : null;
+              }}
+            />
+          </Panel>
+
+          <Panel title="Subtítulos">
+            <div className="flex flex-wrap gap-1.5" role="group" aria-label="Estilo de subtítulos">
               {SUBTITLES.map((s) => (
-                <button
-                  key={s.id}
-                  type="button"
-                  onClick={() => setSubtitle(s.id)}
-                  className={`rounded-full px-3.5 py-2.5 text-sm ${subtitle === s.id ? "bg-accent text-white" : "bg-white/5 text-zinc-300 hover:bg-white/10"}`}
-                >
+                <button key={s.id} type="button" onClick={() => setSubtitle(s.id)} aria-pressed={subtitle === s.id} className="chip min-h-10">
                   {s.label}
                 </button>
               ))}
             </div>
-          </section>
+          </Panel>
 
-          <section className={`${card} space-y-3`}>
+          <section className="panel space-y-3 p-4">
             <div className="flex flex-wrap gap-2">
-              <button onClick={save} disabled={busy} className={`${btn} bg-white/10 hover:bg-white/15`}>
-                Guardar cambios
-              </button>
-              <button onClick={render} disabled={busy || rendering} className={`${btn} bg-accent text-white hover:brightness-110`}>
+              <button onClick={render} disabled={busy || rendering} className="btn btn-primary">
                 {rendering ? "Renderizando..." : "Renderizar"}
               </button>
-              <button onClick={genCopy} disabled={busy} className={`${btn} bg-white/10 hover:bg-white/15`}>
+              <button onClick={save} disabled={busy} className="btn btn-secondary">
+                Guardar cambios
+              </button>
+              <button onClick={genCopy} disabled={busy} className="btn btn-secondary">
                 Generar copies
               </button>
-              <button
-                onClick={() => setConfirmDel(true)}
-                disabled={busy}
-                className={`${btn} flex items-center gap-2 bg-red-500/10 text-red-300 hover:bg-red-500/20`}
-              >
+              <button onClick={() => setConfirmDel(true)} disabled={busy} className="btn btn-danger ml-auto">
                 <TrashIcon className="h-4 w-4" /> Eliminar clip
               </button>
             </div>
-            {msg && <p className={`text-sm ${msg.ok ? "text-emerald-400" : "text-red-400"}`}>{msg.text}</p>}
+            {msg && <p className={`text-sm ${msg.ok ? "text-ok" : "text-danger"}`}>{msg.text}</p>}
           </section>
         </div>
       </div>
 
-      <section className={card}>
-        <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-          <h2 className="font-semibold">Copies para redes</h2>
-          <div className="flex gap-2">
-            <button onClick={saveCopies} disabled={busy} className={`${btn} bg-white/10 hover:bg-white/15`}>
+      <div className="grid grid-cols-[minmax(0,1fr)] items-start gap-5 lg:grid-cols-2">
+        <Panel
+          title="Copies para redes"
+          action={
+            <button onClick={saveCopies} disabled={busy} className="btn btn-secondary btn-sm">
               Guardar copies
             </button>
-          </div>
-        </div>
-        <CopiesEditor
-          key={copiesRev}
-          copies={copies}
-          onChange={(c) => {
-            copiesDirty.current = true;
-            setCopies(c);
-          }}
-        />
-      </section>
+          }
+        >
+          <CopiesEditor
+            key={copiesRev}
+            copies={copies}
+            onChange={(c) => {
+              copiesDirty.current = true;
+              setCopies(c);
+            }}
+          />
+        </Panel>
 
-      <section className={card}>
-        <h2 className="mb-3 font-semibold">Publicar en redes</h2>
-        <PublishPanel key={copiesRev} clip={{ ...clip, copies }} />
-      </section>
+        <Panel title="Publicar en redes">
+          <PublishPanel key={copiesRev} clip={{ ...clip, copies }} />
+        </Panel>
+      </div>
       <ConfirmDialog
         open={confirmDel}
         title="¿Eliminar este clip?"

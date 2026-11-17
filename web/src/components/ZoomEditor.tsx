@@ -23,11 +23,11 @@ function Toggle({
         type="checkbox"
         checked={checked}
         onChange={(e) => onChange(e.target.checked)}
-        className="mt-1 h-4 w-4 accent-[var(--color-accent,#7c5cff)]"
+        className="mt-1 h-4 w-4"
       />
       <span>
-        <span className="block text-sm text-zinc-200">{label}</span>
-        {hint && <span className="block text-xs text-zinc-500">{hint}</span>}
+        <span className="block text-sm text-foreground">{label}</span>
+        {hint && <span className="block text-xs text-faint">{hint}</span>}
       </span>
     </label>
   );
@@ -36,9 +36,9 @@ function Toggle({
 function TimeField({ label, value, onChange }: { label: string; value: number; onChange: (v: number) => void }) {
   return (
     <div className="min-w-0 flex-1">
-      <span className="mb-0.5 block text-[11px] text-zinc-500">{label}</span>
+      <span className="mb-0.5 block text-[11px] text-faint">{label}</span>
       <div className="flex items-center gap-1">
-        <button type="button" onClick={() => onChange(value - 0.5)} className="h-10 w-10 shrink-0 rounded-lg bg-white/5 hover:bg-white/10">
+        <button type="button" onClick={() => onChange(value - 0.5)} className="btn btn-secondary h-10 w-10 shrink-0 px-0">
           −
         </button>
         <input
@@ -47,9 +47,9 @@ function TimeField({ label, value, onChange }: { label: string; value: number; o
           min={0}
           value={Number.isFinite(value) ? value : ""}
           onChange={(e) => onChange(parseFloat(e.target.value))}
-          className="h-10 w-full min-w-0 rounded-lg border border-white/10 bg-bg px-1 text-center text-sm outline-none focus:border-accent"
+          className="field timecode h-10 min-w-0 px-1 text-center text-sm"
         />
-        <button type="button" onClick={() => onChange(value + 0.5)} className="h-10 w-10 shrink-0 rounded-lg bg-white/5 hover:bg-white/10">
+        <button type="button" onClick={() => onChange(value + 0.5)} className="btn btn-secondary h-10 w-10 shrink-0 px-0">
           +
         </button>
       </div>
@@ -117,19 +117,19 @@ export function ZoomEditor({
 
       <div>
         <div className="mb-2 flex items-center justify-between gap-2">
-          <h3 className="text-sm font-semibold text-zinc-300">Zooms manuales</h3>
-          <button type="button" onClick={add} className="rounded-lg bg-white/10 px-3.5 py-2.5 text-sm hover:bg-white/15">
+          <h3 className="text-sm font-semibold">Zooms manuales</h3>
+          <button type="button" onClick={add} className="btn btn-secondary btn-sm min-h-10">
             Agregar zoom aquí
           </button>
         </div>
         {zooms.length === 0 ? (
-          <p className="text-xs text-zinc-500">
+          <p className="text-xs text-faint">
             Sin zooms. Reproduce la vista previa hasta el momento deseado y pulsa «Agregar zoom aquí».
           </p>
         ) : (
           <ul className="space-y-3">
             {zooms.map((z, i) => (
-              <li key={i} className="rounded-lg border border-white/10 bg-bg/40 p-3">
+              <li key={i} className="rounded-lg border border-line bg-bg p-3">
                 <div className="flex flex-wrap items-end gap-2">
                   <TimeField label="Inicio (s)" value={z.start} onChange={(v) => setTime(i, "start", v)} />
                   <TimeField label="Fin (s)" value={z.end} onChange={(v) => setTime(i, "end", v)} />
@@ -137,13 +137,13 @@ export function ZoomEditor({
                     type="button"
                     onClick={() => setZooms(zooms.filter((_, j) => j !== i))}
                     aria-label="Eliminar zoom"
-                    className="h-10 rounded-lg bg-red-500/10 px-3 text-sm text-red-300 hover:bg-red-500/20"
+                    className="btn btn-danger btn-sm min-h-10"
                   >
                     Eliminar
                   </button>
                 </div>
-                <label className="mt-2 flex items-center gap-3 text-xs text-zinc-400">
-                  <span className="w-20 shrink-0">Zoom ×{z.scale.toFixed(2)}</span>
+                <label className="mt-2 flex items-center gap-3 text-xs text-muted">
+                  <span className="timecode w-20 shrink-0">Zoom ×{z.scale.toFixed(2)}</span>
                   <input
                     type="range"
                     min={ZOOM_MIN}
@@ -151,7 +151,7 @@ export function ZoomEditor({
                     step={0.05}
                     value={z.scale}
                     onChange={(e) => patch(i, { scale: parseFloat(e.target.value) })}
-                    className="w-full accent-[var(--color-accent,#7c5cff)]"
+                    className="w-full"
                   />
                 </label>
               </li>
@@ -179,7 +179,7 @@ export function ZoomTimeline({
   return (
     <div className="mt-2">
       <div
-        className="relative h-3 cursor-pointer rounded-full bg-white/10"
+        className="relative h-3 cursor-pointer rounded-full bg-line-strong"
         onClick={(e) => {
           const r = e.currentTarget.getBoundingClientRect();
           onSeek?.(clamp((e.clientX - r.left) / r.width, 0, 1) * duration);
@@ -189,7 +189,7 @@ export function ZoomTimeline({
         {zooms.map((z, i) => (
           <div
             key={i}
-            className="absolute top-0 h-full rounded-full bg-accent/80"
+            className="absolute top-0 h-full rounded-full bg-foreground/80"
             style={{
               left: `${(clamp(z.start, 0, duration) / duration) * 100}%`,
               width: `${(Math.max(0.05, clamp(z.end, 0, duration) - clamp(z.start, 0, duration)) / duration) * 100}%`,
@@ -198,7 +198,7 @@ export function ZoomTimeline({
           />
         ))}
       </div>
-      <p className="mt-1 text-[11px] text-zinc-500">
+      <p className="mt-1 text-[11px] text-faint">
         {zooms.length} zoom{zooms.length === 1 ? "" : "s"} manual{zooms.length === 1 ? "" : "es"}
         {auto ? " + automáticos en picos de audio" : ""}
       </p>

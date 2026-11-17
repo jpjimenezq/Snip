@@ -25,7 +25,7 @@ export const YouTubePlayer = forwardRef<PlayerHandle, { videoId: string }>(funct
     },
   }));
   return (
-    <div className="aspect-video w-full overflow-hidden rounded-xl bg-black">
+    <div className="aspect-video w-full overflow-hidden rounded-xl border border-line bg-black">
       <iframe
         ref={iframe}
         className="h-full w-full"

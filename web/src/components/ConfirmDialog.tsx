@@ -78,22 +78,22 @@ export function ConfirmDialog({
         aria-labelledby="confirm-title"
         aria-describedby="confirm-desc"
         onClick={(e) => e.stopPropagation()}
-        className="w-full max-w-md rounded-xl border border-white/10 bg-surface p-5 shadow-2xl"
+        className="panel w-full max-w-md bg-surface p-5"
       >
-        <h2 id="confirm-title" className="text-lg font-bold">
+        <h2 id="confirm-title" className="text-base font-semibold">
           {title}
         </h2>
-        <div id="confirm-desc" className="mt-2 space-y-2 text-sm text-zinc-300">
+        <div id="confirm-desc" className="mt-2 space-y-2 text-sm text-muted">
           {children}
         </div>
-        {error && <p className="mt-3 text-sm text-red-400">{error}</p>}
+        {error && <p className="mt-3 text-sm text-danger">{error}</p>}
         <div className="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
           <button
             ref={cancelRef}
             type="button"
             onClick={onCancel}
             disabled={busy}
-            className="h-11 rounded-lg bg-white/10 px-4 text-sm font-semibold hover:bg-white/15 disabled:opacity-50"
+            className="btn btn-secondary"
           >
             Cancelar
           </button>
@@ -102,7 +102,7 @@ export function ConfirmDialog({
             type="button"
             onClick={onConfirm}
             disabled={busy}
-            className="h-11 rounded-lg bg-red-500 px-4 text-sm font-semibold text-white hover:brightness-110 disabled:opacity-50"
+            className="btn border border-danger bg-danger text-black hover:brightness-110"
           >
             {busy ? "Eliminando..." : confirmLabel}
           </button>

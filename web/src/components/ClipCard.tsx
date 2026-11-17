@@ -6,7 +6,8 @@ import { deleteClip } from "@/lib/actions";
 import type { Clip } from "@/lib/types";
 import { formatDuration, formatTime } from "@/lib/time";
 import { useSignedUrl } from "@/lib/useSignedUrl";
-import { OriginBadge, ProgressBar, ScoreBadge, StatusChip } from "./Badges";
+import { OriginBadge, ProgressBar, ScoreBadge, StatusChip, originLabel } from "./Badges";
+import { Stat } from "./ui";
 import { ConfirmDialog, TrashIcon } from "./ConfirmDialog";
 
 export function ClipCard({
@@ -51,9 +52,9 @@ export function ClipCard({
   }
 
   return (
-    <article className="overflow-hidden rounded-xl border border-white/10 bg-surface">
+    <article className="group panel flex flex-col overflow-hidden transition-colors hover:border-line-strong">
       <div
-        className="relative aspect-video cursor-pointer bg-black"
+        className="relative aspect-video cursor-pointer bg-raised"
         onMouseEnter={() => setActive(true)}
         onMouseLeave={() => setActive(false)}
         onClick={toggle}
@@ -64,38 +65,47 @@ export function ClipCard({
           <video src={previewUrl} autoPlay muted loop playsInline className="absolute inset-0 h-full w-full object-cover" />
         )}
         {!frameUrl && !previewUrl && (
-          <div className="absolute inset-0 flex items-center justify-center text-xs text-zinc-600">Sin imagen</div>
+          <div className="absolute inset-0 flex items-center justify-center text-xs text-faint">Sin imagen</div>
         )}
-        <div className="absolute left-2 top-2 flex flex-wrap gap-1.5">
+        <div className="absolute inset-x-2.5 top-2.5 flex items-start justify-between gap-2">
           <ScoreBadge score={clip.score} />
-          <OriginBadge origin={clip.origin} />
-          {published && (
-            <span className="rounded-md bg-emerald-500/20 px-2 py-0.5 text-xs font-medium text-emerald-300">Publicado</span>
-          )}
+          <div className="flex gap-1.5">
+            <OriginBadge origin={clip.origin} />
+            {published && (
+              <span className="rounded-md bg-black/70 px-1.5 py-0.5 text-[11px] font-medium text-ok backdrop-blur">
+                Publicado
+              </span>
+            )}
+          </div>
         </div>
-        <span className="absolute bottom-2 right-2 rounded bg-black/70 px-1.5 py-0.5 text-xs">
+        <span className="timecode absolute bottom-2.5 right-2.5 rounded-md bg-black/75 px-1.5 py-0.5 text-xs text-zinc-100">
           {formatDuration(clip.end_s - clip.start_s)}
         </span>
       </div>
-      <div className="space-y-2 p-3">
-        <Link href={`/clips/${clip.id}`} className="block py-1 font-medium leading-snug hover:text-accent">
+      <div className="flex flex-1 flex-col p-3.5">
+        <Link href={`/clips/${clip.id}`} className="line-clamp-2 text-sm font-medium leading-5 hover:text-white">
           {clip.title || "Clip sin título"}
         </Link>
-        {sourceTitle && <p className="truncate text-xs text-zinc-500">{sourceTitle}</p>}
-        {clip.hook && <p className="line-clamp-2 text-sm text-zinc-400">{clip.hook}</p>}
-        <div className="flex items-center justify-between gap-2 text-xs text-zinc-500">
-          <span>
-            {formatTime(clip.start_s)}–{formatTime(clip.end_s)}
-          </span>
-          <StatusChip status={clip.status} kind="clip" />
-        </div>
-        {busy && <ProgressBar value={clip.progress} />}
-        {clip.error && <p className="line-clamp-2 text-xs text-red-400">{clip.error}</p>}
-        <div className="flex gap-2">
-          <Link
-            href={`/clips/${clip.id}`}
-            className="flex h-10 flex-1 items-center justify-center rounded-lg bg-white/5 text-sm text-zinc-200 hover:bg-white/10"
-          >
+        {sourceTitle && <p className="mt-0.5 truncate text-xs text-faint">{sourceTitle}</p>}
+        {clip.hook && <p className="mt-2 line-clamp-2 text-[13px] leading-5 text-muted">{clip.hook}</p>}
+        {clip.reason && (
+          <p className="mt-1.5 line-clamp-2 text-xs leading-4 text-faint" title={clip.reason}>
+            {clip.reason}
+          </p>
+        )}
+        <dl className="mt-3 grid grid-cols-3 gap-2 border-t border-line pt-3">
+          <Stat label="Momento" value={`${formatTime(clip.start_s)}`} />
+          <Stat label="Origen" value={originLabel(clip.origin)} />
+          <Stat label="Estado" value={<StatusChip status={clip.status} kind="clip" />} />
+        </dl>
+        {busy && (
+          <div className="mt-3">
+            <ProgressBar value={clip.progress} />
+          </div>
+        )}
+        {clip.error && <p className="mt-2 line-clamp-2 text-xs text-danger">{clip.error}</p>}
+        <div className="mt-auto flex gap-2 pt-3">
+          <Link href={`/clips/${clip.id}`} className="btn btn-secondary btn-sm flex-1">
             Editar
           </Link>
           {onDeleted && (
@@ -103,7 +113,7 @@ export function ClipCard({
               type="button"
               onClick={() => setConfirm(true)}
               aria-label={`Eliminar clip ${clip.title ?? ""}`.trim()}
-              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-red-500/10 text-red-300 hover:bg-red-500/20"
+              className="btn btn-ghost btn-sm w-9 px-0 hover:text-danger"
             >
               <TrashIcon />
             </button>

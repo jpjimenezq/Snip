@@ -5,8 +5,10 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { deleteSource } from "@/lib/actions";
 import { createClient } from "@/lib/supabase/client";
 import type { SourceWithCount } from "@/lib/types";
-import { formatRelative } from "@/lib/time";
+import { formatRelative, formatTime } from "@/lib/time";
 import { PlatformBadge, ProgressBar, StatusChip } from "./Badges";
+import { EmptySteps, Stat } from "./ui";
+import { useSignedUrl } from "@/lib/useSignedUrl";
 import { ConfirmDialog, TrashIcon } from "./ConfirmDialog";
 
 export function SourceList() {
@@ -64,68 +66,38 @@ export function SourceList() {
     };
   }, [load]);
 
-  if (error) return <p className="text-sm text-red-400">No se pudieron cargar las fuentes: {error}</p>;
-  if (!sources) return <p className="text-sm text-zinc-500">Cargando...</p>;
+  if (error) return <p className="text-sm text-danger">No se pudieron cargar las fuentes: {error}</p>;
+  if (!sources) return <p className="text-sm text-muted">Cargando…</p>;
   if (sources.length === 0)
     return (
-      <div className="rounded-xl border border-dashed border-white/10 p-6 text-zinc-400">
-        <p className="mb-3 font-medium text-zinc-200">Aún no hay fuentes. Así empiezas:</p>
-        <ol className="list-inside list-decimal space-y-2 text-sm">
-          <li>Pega un enlace de YouTube, Kick o Twitch arriba y la IA sugerirá los mejores momentos.</li>
-          <li>
-            Usa el atajo <kbd className="rounded bg-white/10 px-1.5 py-0.5 text-xs text-zinc-200">Alt+Shift+S</kbd> con la
-            extensión de Chrome mientras ves un video para clipear al instante.
-          </li>
-          <li>
-            Agrega un canal en vivo en{" "}
-            <Link href="/live" className="text-accent underline">
+      <EmptySteps
+        title="Aún no hay fuentes. Así empiezas:"
+        steps={[
+          <>
+            <strong className="text-foreground">Pega un enlace</strong> de YouTube, Kick o Twitch arriba. La IA te
+            sugiere los mejores momentos.
+          </>,
+          <>
+            Instala la extensión y pulsa <span className="kbd">Alt</span> <span className="kbd">Shift</span>{" "}
+            <span className="kbd">S</span> mientras ves un video para clipear al instante.
+          </>,
+          <>
+            Agrega un canal en{" "}
+            <Link href="/live" className="text-accent underline underline-offset-4">
               En vivo
             </Link>{" "}
-            para que Snip grabe un búfer y puedas clipear lo que acaba de pasar.
-          </li>
-        </ol>
-      </div>
+            y Snip guarda los últimos minutos para que no se te escape nada.
+          </>,
+        ]}
+      />
     );
 
   return (
     <>
-    <ul className="space-y-3">
-      {sources.map((s) => {
-        const count = s.clips?.[0]?.count ?? 0;
-        const working = !["ready", "error"].includes(s.status);
-        return (
-          <li key={s.id} className="flex items-stretch gap-2">
-            <Link
-              href={`/sources/${s.id}`}
-              className="block min-w-0 flex-1 rounded-xl border border-white/10 bg-surface p-4 transition hover:border-accent/60"
-            >
-              <div className="flex flex-wrap items-center gap-2">
-                <PlatformBadge platform={s.platform} />
-                <StatusChip status={s.status} kind="source" />
-                <span className="ml-auto text-xs text-zinc-500">
-                  {count} {count === 1 ? "clip" : "clips"} · {formatRelative(s.created_at)}
-                </span>
-              </div>
-              <p className="mt-2 truncate font-medium">{s.title || s.url}</p>
-              {s.title && <p className="truncate text-xs text-zinc-500">{s.url}</p>}
-              {working && (
-                <div className="mt-3">
-                  <ProgressBar value={s.progress} />
-                </div>
-              )}
-              {s.error && <p className="mt-2 line-clamp-2 text-sm text-red-400">{s.error}</p>}
-            </Link>
-            <button
-              type="button"
-              onClick={() => setToDelete(s)}
-              aria-label={`Eliminar fuente ${s.title || s.url}`}
-              className="flex w-11 shrink-0 items-center justify-center self-stretch rounded-xl border border-white/10 bg-surface text-zinc-500 hover:border-red-500/50 hover:text-red-300"
-            >
-              <TrashIcon />
-            </button>
-          </li>
-        );
-      })}
+    <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+      {sources.map((s) => (
+        <SourceCard key={s.id} source={s} onDelete={() => setToDelete(s)} />
+      ))}
     </ul>
     <ConfirmDialog
       open={!!toDelete}
@@ -152,5 +124,59 @@ export function SourceList() {
       )}
     </ConfirmDialog>
     </>
+  );
+}
+
+function SourceCard({ source: s, onDelete }: { source: SourceWithCount; onDelete: () => void }) {
+  const thumb = useSignedUrl(s.thumb_path);
+  const count = s.clips?.[0]?.count ?? 0;
+  const working = !["ready", "error"].includes(s.status);
+  return (
+    <li className="group panel relative overflow-hidden transition-colors hover:border-line-strong">
+      <Link href={`/sources/${s.id}`} className="block">
+        <div className="relative aspect-video bg-raised">
+          {thumb ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={thumb} alt="" className="absolute inset-0 h-full w-full object-cover" />
+          ) : (
+            <div className="absolute inset-0 flex items-center justify-center text-xs text-faint">Sin miniatura</div>
+          )}
+          <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent" />
+          <div className="absolute left-2.5 top-2.5 rounded-md bg-black/70 px-2 py-1 backdrop-blur">
+            <PlatformBadge platform={s.platform} />
+          </div>
+          {s.duration_s != null && (
+            <span className="timecode absolute bottom-2.5 right-2.5 rounded-md bg-black/75 px-1.5 py-0.5 text-xs text-zinc-100">
+              {formatTime(s.duration_s)}
+            </span>
+          )}
+          {working && (
+            <div className="absolute inset-x-2.5 bottom-2.5 right-16">
+              <ProgressBar value={s.progress} />
+            </div>
+          )}
+        </div>
+        <div className="p-3.5">
+          <p className="line-clamp-2 min-h-[2.5rem] text-sm font-medium leading-5 group-hover:text-white">
+            {s.title || s.url}
+          </p>
+          <p className="mt-0.5 truncate text-xs text-faint">{s.channel || s.url}</p>
+          {s.error && <p className="mt-2 line-clamp-2 text-xs text-danger">{s.error}</p>}
+          <dl className="mt-3 grid grid-cols-3 gap-2 border-t border-line pt-3">
+            <Stat label="Estado" value={<StatusChip status={s.status} kind="source" />} />
+            <Stat label="Clips" value={count} />
+            <Stat label="Agregado" value={formatRelative(s.created_at)} />
+          </dl>
+        </div>
+      </Link>
+      <button
+        type="button"
+        onClick={onDelete}
+        aria-label={`Eliminar fuente ${s.title || s.url}`}
+        className="absolute right-2 top-2 flex h-9 w-9 items-center justify-center rounded-lg bg-black/70 text-zinc-300 opacity-0 backdrop-blur transition hover:text-danger focus-visible:opacity-100 group-hover:opacity-100 max-sm:opacity-100"
+      >
+        <TrashIcon />
+      </button>
+    </li>
   );
 }

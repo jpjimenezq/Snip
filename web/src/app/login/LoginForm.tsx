@@ -3,6 +3,7 @@
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { LogoMark, Wordmark } from "@/components/ui";
 import { safeNext } from "@/lib/url";
 
 export function LoginForm() {
@@ -27,23 +28,23 @@ export function LoginForm() {
     router.refresh();
   }
 
-  const field =
-    "h-12 w-full rounded-xl border border-white/10 bg-surface px-4 outline-none placeholder:text-zinc-500 focus:border-accent";
-
   return (
-    <form onSubmit={submit} className="w-full max-w-sm space-y-4">
+    <form onSubmit={submit} className="panel w-full max-w-sm space-y-3 p-6">
       <div className="mb-6 text-center">
-        <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-accent text-2xl text-white">✂</div>
-        <h1 className="text-2xl font-bold">Snip</h1>
-        <p className="text-sm text-zinc-500">Inicia sesión para continuar</p>
+        <div className="mb-3 flex items-center justify-center gap-2.5">
+          <LogoMark size={32} />
+          <Wordmark />
+        </div>
+        <h1 className="sr-only">Snip</h1>
+        <p className="text-sm text-muted">Inicia sesión para continuar</p>
       </div>
-      <input type="email" required autoComplete="email" placeholder="Correo" value={email} onChange={(e) => setEmail(e.target.value)} className={field} />
-      <input type="password" required autoComplete="current-password" placeholder="Contraseña" value={password} onChange={(e) => setPassword(e.target.value)} className={field} />
-      {error && <p className="text-sm text-red-400">{error}</p>}
-      <button disabled={busy} className="h-12 w-full rounded-xl bg-accent font-semibold text-white hover:brightness-110 disabled:opacity-50">
+      <input type="email" required autoComplete="email" placeholder="Correo" value={email} onChange={(e) => setEmail(e.target.value)} className="field" />
+      <input type="password" required autoComplete="current-password" placeholder="Contraseña" value={password} onChange={(e) => setPassword(e.target.value)} className="field" />
+      {error && <p className="text-sm text-danger">{error}</p>}
+      <button type="submit" disabled={busy} className="btn btn-primary w-full">
         {busy ? "Entrando..." : "Entrar"}
       </button>
-      <p className="text-center text-xs text-zinc-500">
+      <p className="text-center text-xs text-faint">
         Panel personal de un solo usuario: la cuenta se crea desde el panel de Supabase (Authentication → Users).
       </p>
     </form>

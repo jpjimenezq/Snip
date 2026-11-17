@@ -6,17 +6,24 @@ import { useEffect, useRef, useState } from "react";
 import { deleteSource, reanalyzeSource } from "@/lib/actions";
 import { createClient } from "@/lib/supabase/client";
 import type { Clip, Source } from "@/lib/types";
-import { formatDuration, formatTime } from "@/lib/time";
+import { formatTime } from "@/lib/time";
 import { youtubeId } from "@/lib/url";
 import { PlatformBadge, ProgressBar, StatusChip } from "./Badges";
+import { SectionHeader, Stat } from "./ui";
 import { ClipCard } from "./ClipCard";
 import { ConfirmDialog, TrashIcon } from "./ConfirmDialog";
 import { ManualClipPanel } from "./ManualClipPanel";
 import { YouTubePlayer, type PlayerHandle } from "./YouTubePlayer";
 
-function sortClips(clips: Clip[]): Clip[] {
-  return [...clips].sort((a, b) => (b.score ?? -1) - (a.score ?? -1) || a.start_s - b.start_s);
+type SortKey = "score" | "time";
+
+function sortClips(clips: Clip[], by: SortKey): Clip[] {
+  return [...clips].sort((a, b) =>
+    by === "time" ? a.start_s - b.start_s : (b.score ?? -1) - (a.score ?? -1) || a.start_s - b.start_s,
+  );
 }
+
+const dateFmt = new Intl.DateTimeFormat("es", { day: "numeric", month: "short", year: "numeric" });
 
 export function SourceView({ id }: { id: string }) {
   const [source, setSource] = useState<Source | null>(null);
@@ -30,6 +37,7 @@ export function SourceView({ id }: { id: string }) {
   const [delError, setDelError] = useState<string | null>(null);
   const [reBusy, setReBusy] = useState(false);
   const [reMsg, setReMsg] = useState<{ ok: boolean; text: string } | null>(null);
+  const [sortBy, setSortBy] = useState<SortKey>("score");
 
   useEffect(() => {
     const supabase = createClient();
@@ -67,12 +75,12 @@ export function SourceView({ id }: { id: string }) {
     };
   }, [id]);
 
-  if (!loaded) return <p className="text-sm text-zinc-500">Cargando...</p>;
+  if (!loaded) return <p className="text-sm text-muted">Cargando...</p>;
   if (!source)
     return (
-      <p className="text-sm text-zinc-400">
+      <p className="text-sm text-muted">
         {error ?? "Fuente no encontrada."}{" "}
-        <Link href="/" className="text-accent underline">
+        <Link href="/" className="text-foreground underline">
           Volver
         </Link>
       </p>
@@ -80,7 +88,7 @@ export function SourceView({ id }: { id: string }) {
 
   const yt = source.platform === "youtube" ? youtubeId(source.url) : null;
   const working = !["ready", "error"].includes(source.status);
-  const sorted = sortClips(clips);
+  const sorted = sortClips(clips, sortBy);
 
   async function doDelete() {
     setDeleting(true);
@@ -113,47 +121,40 @@ export function SourceView({ id }: { id: string }) {
 
   return (
     <div className="space-y-6">
-      <div>
-        <Link href="/" className="inline-flex h-10 items-center text-sm text-zinc-500 hover:text-zinc-300">
+      <header>
+        <Link href="/" className="inline-flex h-10 items-center text-sm text-muted hover:text-foreground">
           ← Fuentes
         </Link>
-        <div className="mt-2 flex flex-wrap items-center gap-2">
-          <PlatformBadge platform={source.platform} />
-          <StatusChip status={source.status} kind="source" />
-          {source.duration_s != null && <span className="text-xs text-zinc-500">{formatTime(source.duration_s)}</span>}
-        </div>
-        <h1 className="mt-2 text-xl font-bold leading-snug">{source.title || source.url}</h1>
-        {source.channel && <p className="text-sm text-zinc-400">{source.channel}</p>}
-        <a href={source.url} target="_blank" rel="noreferrer" className="block truncate text-xs text-zinc-500 hover:text-zinc-300">
+        <h1 className="font-display mt-1 text-2xl">{source.title || source.url}</h1>
+        {source.channel && <p className="mt-1.5 text-sm text-muted">{source.channel}</p>}
+        <a href={source.url} target="_blank" rel="noreferrer" className="mt-0.5 block truncate text-xs text-faint hover:text-foreground">
           {source.url}
         </a>
+        <dl className="mt-4 grid grid-cols-2 gap-x-6 gap-y-3 sm:grid-cols-3 lg:grid-cols-5">
+          <Stat label="Plataforma" value={<PlatformBadge platform={source.platform} />} />
+          <Stat label="Estado" value={<StatusChip status={source.status} kind="source" />} />
+          <Stat label="Duración" value={source.duration_s != null ? formatTime(source.duration_s) : "—"} />
+          <Stat label="Clips" value={clips.length} />
+          <Stat label="Agregada" value={source.created_at ? dateFmt.format(new Date(source.created_at)) : "—"} />
+        </dl>
         {working && (
           <div className="mt-3 max-w-md">
             <ProgressBar value={source.progress} />
           </div>
         )}
-        {source.error && <p className="mt-2 text-sm text-red-400">{source.error}</p>}
-        <div className="mt-3 flex flex-wrap gap-2">
+        {source.error && <p className="mt-2 text-sm text-danger">{source.error}</p>}
+        <div className="mt-4 flex flex-wrap gap-2">
           {source.status === "ready" && (
-            <button
-              type="button"
-              onClick={reanalyze}
-              disabled={reBusy}
-              className="h-10 rounded-lg bg-white/10 px-4 text-sm font-semibold hover:bg-white/15 disabled:opacity-50"
-            >
+            <button type="button" onClick={reanalyze} disabled={reBusy} className="btn btn-secondary">
               Volver a buscar momentos
             </button>
           )}
-          <button
-            type="button"
-            onClick={() => setConfirmDel(true)}
-            className="flex h-10 items-center gap-2 rounded-lg bg-red-500/10 px-4 text-sm font-semibold text-red-300 hover:bg-red-500/20"
-          >
+          <button type="button" onClick={() => setConfirmDel(true)} className="btn btn-danger">
             <TrashIcon className="h-4 w-4" /> Eliminar fuente
           </button>
         </div>
-        {reMsg && <p className={`mt-2 text-sm ${reMsg.ok ? "text-emerald-400" : "text-red-400"}`}>{reMsg.text}</p>}
-      </div>
+        {reMsg && <p className={`mt-2 text-sm ${reMsg.ok ? "text-ok" : "text-danger"}`}>{reMsg.text}</p>}
+      </header>
       <ConfirmDialog
         open={confirmDel}
         title="¿Eliminar esta fuente?"
@@ -175,44 +176,56 @@ export function SourceView({ id }: { id: string }) {
         <p>Esta acción no se puede deshacer.</p>
       </ConfirmDialog>
 
-      <div className="grid gap-6 lg:grid-cols-[1fr_340px]">
+      <div className="grid grid-cols-[minmax(0,1fr)] items-start gap-6 lg:grid-cols-[minmax(0,1fr)_340px]">
         <div className="space-y-6">
           {yt ? (
             <YouTubePlayer ref={player} videoId={yt} />
           ) : (
-            <p className="rounded-xl border border-dashed border-white/10 p-4 text-sm text-zinc-500">
+            <p className="rounded-xl border border-dashed border-line-strong p-4 text-sm text-muted">
               El reproductor solo está disponible para YouTube. Usa la vista previa de cada clip.
             </p>
           )}
-          <section>
-            <h2 className="mb-3 text-sm font-semibold uppercase tracking-wider text-zinc-500">
-              Clips ({sorted.length})
-            </h2>
-            {sorted.length === 0 ? (
-              <p className="rounded-xl border border-dashed border-white/10 p-6 text-center text-sm text-zinc-500">
-                {working ? "Procesando... los clips sugeridos aparecerán aquí." : "Todavía no hay clips."}
-              </p>
-            ) : (
-              <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-                {sorted.map((c) => (
-                  <ClipCard
-                    key={c.id}
-                    clip={c}
-                    onSeek={yt ? (s) => player.current?.seekTo(s) : undefined}
-                    onDeleted={(cid) => setClips((cs) => cs.filter((x) => x.id !== cid))}
-                  />
-                ))}
-              </div>
-            )}
-          </section>
         </div>
-        <aside className="lg:sticky lg:top-20 lg:self-start">
+        <aside className="lg:sticky lg:top-20">
           <ManualClipPanel sourceId={source.id} />
-          {source.duration_s != null && (
-            <p className="mt-2 text-xs text-zinc-500">Duración de la fuente: {formatDuration(source.duration_s)}</p>
-          )}
         </aside>
       </div>
+
+      <section>
+        <SectionHeader
+          title="Clips"
+          count={sorted.length}
+          action={
+            sorted.length > 1 ? (
+              <div className="flex items-center gap-1.5" role="group" aria-label="Ordenar clips">
+                <span className="text-xs text-faint">Ordenar</span>
+                <button type="button" className="chip min-h-9" aria-pressed={sortBy === "score"} onClick={() => setSortBy("score")}>
+                  Puntaje
+                </button>
+                <button type="button" className="chip min-h-9" aria-pressed={sortBy === "time"} onClick={() => setSortBy("time")}>
+                  Tiempo
+                </button>
+              </div>
+            ) : undefined
+          }
+        />
+        {sorted.length === 0 ? (
+          <p className="rounded-xl border border-dashed border-line-strong p-6 text-center text-sm text-muted">
+            {working ? "Procesando... los clips sugeridos aparecerán aquí." : "Todavía no hay clips."}
+          </p>
+        ) : (
+          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+            {sorted.map((c) => (
+              <ClipCard
+                key={c.id}
+                clip={c}
+                onSeek={yt ? (s) => player.current?.seekTo(s) : undefined}
+                onDeleted={(cid) => setClips((cs) => cs.filter((x) => x.id !== cid))}
+              />
+            ))}
+          </div>
+        )}
+      </section>
     </div>
   );
 }
