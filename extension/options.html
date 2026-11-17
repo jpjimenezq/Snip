@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Snip · Opciones</title>
+<link rel="stylesheet" href="options.css">
+</head>
+<body>
+<main>
+  <h1>✂️ Snip</h1>
+  <p class="sub">Conecta la extensión con tu proyecto de Supabase. Atajo: <b>Alt+Shift+S</b>
+    (cámbialo en <code>chrome://extensions/shortcuts</code>).</p>
+  <form id="f">
+    <label>URL de Supabase<input id="supabaseUrl" type="url" placeholder="https://xxxx.supabase.co" required></label>
+    <label>Anon key (pública)<input id="anonKey" type="text" autocomplete="off" required></label>
+    <label>Correo<input id="email" type="email" autocomplete="username" required></label>
+    <label>Contraseña<input id="password" type="password" autocomplete="current-password" placeholder="Solo se usa para iniciar sesión; no se guarda"></label>
+    <label>URL del panel (Vercel)<input id="panelUrl" type="url" placeholder="https://tu-snip.vercel.app"></label>
+    <div class="row">
+      <button type="submit">Guardar e iniciar sesión</button>
+      <button type="button" id="logout" class="ghost">Cerrar sesión</button>
+    </div>
+  </form>
+  <p id="status" role="status"></p>
+  <p><a id="open" href="#" target="_blank" rel="noopener">Abrir Snip</a></p>
+</main>
+<script src="lib.js"></script>
+<script src="options.js"></script>
+</body>
+</html>

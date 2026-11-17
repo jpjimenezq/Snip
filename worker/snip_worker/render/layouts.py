@@ -1,6 +1,9 @@
 """Pure functions: layout dict -> pixel regions -> ffmpeg filtergraph strings."""
 from __future__ import annotations
 
+from .tracking import track_exprs
+from .zoom import zoom_filter
+
 OUT_W = 1080
 OUT_H = 1920
 
@@ -64,7 +67,11 @@ def normalize_layout(layout: dict | None) -> dict:
         regions = []
     ratio = _num(layout, "split_ratio", 0.5)
     ratio = min(max(ratio, 0.2), 0.8)
-    return {"preset": preset, "regions": regions, "split_ratio": ratio}
+    zooms = layout.get("zooms")
+    return {"preset": preset, "regions": regions, "split_ratio": ratio,
+            "track_face": bool(layout.get("track_face")) and preset in ("fill", "split"),
+            "zooms": zooms if isinstance(zooms, list) else [],
+            "auto_zoom": bool(layout.get("auto_zoom"))}
 
 
 def split_heights(split_ratio: float) -> tuple[int, int]:
@@ -79,17 +86,30 @@ def divider_y(layout: dict | None) -> int | None:
     return split_heights(n["split_ratio"])[0] if n["preset"] == "split" else None
 
 
-def _cover_chain(box: tuple[int, int, int, int], w: int, h: int) -> str:
+def _cover_chain(box: tuple[int, int, int, int], w: int, h: int, track: dict | None = None) -> str:
     x, y, cw, ch = box
-    return (f"crop={cw}:{ch}:{x}:{y},"
+    if track and track.get("keys"):
+        xe, ye = track_exprs(track["keys"])
+        crop = f"crop={cw}:{ch}:x='{xe}':y='{ye}'"
+    else:
+        crop = f"crop={cw}:{ch}:{x}:{y}"
+    return (f"{crop},"
             f"scale={w}:{h}:force_original_aspect_ratio=increase:flags=lanczos,"
             f"crop={w}:{h},setsar=1")
 
 
 def build_filtergraph(layout: dict | None, src_w: int, src_h: int,
-                      src_fps: float | None = None, ass_file: str | None = None) -> str:
-    """Complete filter_complex: input [0:v], output [vout] (1080x1920 yuv420p)."""
+                      src_fps: float | None = None, ass_file: str | None = None,
+                      tracks: list[dict | None] | None = None,
+                      zooms: list[dict] | None = None,
+                      zoom_center: tuple[float, float] = (0.5, 0.5)) -> str:
+    """Complete filter_complex: input [0:v], output [vout] (1080x1920 yuv420p).
+
+    tracks: per-region face-tracking trajectories (see tracking.build_track) or None entries.
+    zooms: sanitized [{start,end,scale}] applied to the composed frame BEFORE subtitles."""
     n = normalize_layout(layout)
+    tracks = list(tracks or [])
+    tracks += [None] * (2 - len(tracks))
     parts: list[str] = []
     inp = "[0:v]"
     if src_fps and src_fps > 30.5:
@@ -98,7 +118,7 @@ def build_filtergraph(layout: dict | None, src_w: int, src_h: int,
 
     if n["preset"] == "fill":
         box = region_to_pixels(n["regions"][0], src_w, src_h)
-        parts.append(f"{inp}{_cover_chain(box, OUT_W, OUT_H)}[v0]")
+        parts.append(f"{inp}{_cover_chain(box, OUT_W, OUT_H, tracks[0])}[v0]")
     elif n["preset"] == "fit_blur":
         parts.append(f"{inp}split=2[bg][fg]")
         parts.append(
@@ -112,10 +132,15 @@ def build_filtergraph(layout: dict | None, src_w: int, src_h: int,
         top_box = region_to_pixels(n["regions"][0], src_w, src_h)
         bot_box = region_to_pixels(n["regions"][1], src_w, src_h)
         parts.append(f"{inp}split=2[a][b]")
-        parts.append(f"[a]{_cover_chain(top_box, OUT_W, top_h)}[top]")
-        parts.append(f"[b]{_cover_chain(bot_box, OUT_W, bot_h)}[bot]")
+        parts.append(f"[a]{_cover_chain(top_box, OUT_W, top_h, tracks[0])}[top]")
+        parts.append(f"[b]{_cover_chain(bot_box, OUT_W, bot_h, tracks[1])}[bot]")
         parts.append("[top][bot]vstack=inputs=2[v0]")
 
+    if zooms:
+        parts.append(f"[v0]{zoom_filter(zooms, OUT_W, OUT_H, zoom_center)}[v1]")
+        last = "[v1]"
+    else:
+        last = "[v0]"
     tail = f"ass={ass_file}," if ass_file else ""
-    parts.append(f"[v0]{tail}format=yuv420p[vout]")
+    parts.append(f"{last}{tail}format=yuv420p[vout]")
     return ";".join(parts)

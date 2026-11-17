@@ -12,3 +12,10 @@ pytest==9.2.0
 # (el worker registra sus DLL automaticamente; ver README.md)
 nvidia-cublas-cu12==12.9.2.10
 nvidia-cudnn-cu12==9.28.1.4
+
+# Fase 3: grabación de directos
+streamlink==8.6.3
+
+# Fase 2: seguimiento de caras
+opencv-python-headless==5.0.0.93
+numpy

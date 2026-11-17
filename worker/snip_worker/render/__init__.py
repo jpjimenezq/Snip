@@ -1,15 +1,19 @@
 """Snip video render engine (ffmpeg based)."""
 from __future__ import annotations
 
+import logging
 import os
 import tempfile
 from typing import Callable
 
 from .errors import RenderError
 from .ffmpeg import run_ffmpeg
-from .layouts import build_filtergraph, divider_y
+from .layouts import build_filtergraph, divider_y, normalize_layout, region_to_pixels
 from .probe import probe
 from .subtitles import generate_ass
+from .zoom import auto_zooms, merge_zooms
+
+log = logging.getLogger("snip.render")
 
 __all__ = ["RenderError", "probe", "extract_frame", "make_preview", "render_clip"]
 
@@ -50,6 +54,29 @@ def _video_codec_args(encoder: str) -> list[str]:
     raise RenderError(f"unsupported encoder: {encoder}")
 
 
+def _plan_edits(src: str, layout: dict | None, start: float, duration: float, info: dict
+                ) -> tuple[list[dict | None], list[dict], tuple[float, float]]:
+    """Phase-2 edits: face-tracking trajectories, merged zoom timeline and zoom center.
+    Any failure degrades to the static (phase 1) behaviour."""
+    n = normalize_layout(layout)
+    tracks: list[dict | None] = []
+    if n["track_face"] and n["regions"]:
+        try:
+            from .tracking import compute_tracks
+            boxes = [region_to_pixels(r, info["width"], info["height"]) for r in n["regions"]]
+            tracks = compute_tracks(src, start, duration, info["width"], info["height"], boxes,
+                                    expand_x=1.0 if n["preset"] == "fill" else 0.5)
+        except Exception as e:  # noqa: BLE001
+            log.warning("face tracking failed, using static regions: %s", e)
+            tracks = []
+    auto = auto_zooms(src, start, duration) if n["auto_zoom"] else []
+    zooms = merge_zooms(n["zooms"], auto, duration)
+    center = (0.5, 0.5)
+    if n["preset"] == "fill" and tracks and tracks[0]:
+        center = (0.5, tracks[0]["face_rel_y"])
+    return tracks, zooms, center
+
+
 def render_clip(source_path: str, start: float, end: float, layout: dict | None,
                 words: list[dict], subtitle_style: str, out_path: str,
                 encoder: str = "h264_nvenc",
@@ -73,7 +100,9 @@ def render_clip(source_path: str, start: float, end: float, layout: dict | None,
             ass_name = "subs.ass"
             with open(os.path.join(tmp, ass_name), "w", encoding="utf-8") as f:
                 f.write(ass)
-        graph = build_filtergraph(layout, info["width"], info["height"], info["fps"], ass_name)
+        tracks, zooms, center = _plan_edits(src, layout, start, duration, info)
+        graph = build_filtergraph(layout, info["width"], info["height"], info["fps"], ass_name,
+                                  tracks=tracks, zooms=zooms, zoom_center=center)
         run_ffmpeg([
             "-ss", f"{start:.3f}", "-i", src, "-t", f"{duration:.3f}",
             "-filter_complex", graph, "-map", "[vout]", "-map", "0:a:0?",

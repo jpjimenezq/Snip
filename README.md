@@ -13,7 +13,7 @@ viral y los conviertes en clips verticales con subtítulos listos para TikTok, R
 
 ### 1. Supabase (gratis)
 1. Crea un proyecto en [supabase.com](https://supabase.com).
-2. **SQL Editor** → pega y ejecuta `supabase/migrations/0001_init.sql`.
+2. **SQL Editor** → pega y ejecuta `supabase/migrations/0001_init.sql` y después `0002_live_publish.sql`.
 3. **Authentication → Users → Add user**: crea tu usuario (correo + contraseña).
 4. **Project Settings → API**: copia `Project URL`, `anon key` y `service_role key`.
 
@@ -33,6 +33,8 @@ Ver `web/README.md`. En resumen: importa el repo en Vercel con **Root Directory 
 y agrega `NEXT_PUBLIC_SUPABASE_URL` y `NEXT_PUBLIC_SUPABASE_ANON_KEY`.
 
 ## Uso
+- **En vivo:** en la página *En vivo* agrega el canal (ej. `kick.com/westcol`); el worker lo graba
+  en segundo plano. Mientras lo ves, pulsa `Alt+Shift+S` y elige la duración.
 1. Abre el panel, pega un enlace → el worker (con tu PC prendido) lo procesa.
 2. Revisa los clips sugeridos por la IA (o crea uno manual: momento + 5/10/15/30/45/60 s).
 3. Ajusta el encuadre (llenar, ajustar con fondo o dividir en dos) y el estilo de subtítulos.
@@ -42,6 +44,11 @@ En el celular: comparte un video desde la app de YouTube → **Snip**.
 
 ## Hoja de ruta
 - [x] Fase 1: enlaces → transcripción → momentos IA → editor → render 9:16 + copies
-- [ ] Fase 2: zoom y seguimiento automático de caras
-- [ ] Fase 3: extensión de Chrome con atajo + clip en vivo
-- [ ] Fase 4: publicar directo en TikTok, Instagram, Facebook y YouTube
+- [x] Fase 2: zoom (manual y automático) y seguimiento automático de caras
+- [x] Fase 3: extensión de Chrome con atajo `Alt+Shift+S` + clip en vivo (búfer de 15 min)
+- [x] Fase 4: publicar en TikTok, Instagram, Facebook y YouTube
+
+### Extras
+- **Extensión de Chrome** (`extension/`): ver `extension/README.md`.
+- **Publicación**: registrar las apps de Google, TikTok y Meta → `docs/PUBLISHING.md`.
+- **Modo demo** sin Supabase: `npm --prefix web run dev:demo`.

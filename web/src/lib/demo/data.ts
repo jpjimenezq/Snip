@@ -163,7 +163,42 @@ export function initialDemoState() {
   const transcripts: Transcript[] = [
     { source_id: S1, language: "es", text: S1_SEGMENTS.map((s) => s.text).join(" "), segments: S1_SEGMENTS, created_at: ago(60) },
   ];
-  return { sources, clips: [...S1_CLIPS], transcripts, jobs: [] as Record<string, unknown>[] };
+  const seen = new Date(now - 4_000).toISOString();
+  const live_watches = [
+    {
+      id: "44444444-4444-4444-8444-444444444441", user_id: DEMO_USER_ID, url: "https://kick.com/canal-demo",
+      platform: "kick", channel: "canal-demo", enabled: true, status: "recording", buffer_s: 14 * 60 + 32,
+      error: null, last_seen_at: seen, created_at: ago(120), updated_at: seen,
+    },
+    {
+      id: "44444444-4444-4444-8444-444444444442", user_id: DEMO_USER_ID, url: "https://www.twitch.tv/otro-demo",
+      platform: "twitch", channel: "otro-demo", enabled: true, status: "offline", buffer_s: 0,
+      error: null, last_seen_at: seen, created_at: ago(500), updated_at: seen,
+    },
+  ];
+  const acct = (id: string, platform: string, name: string) => ({
+    id, user_id: DEMO_USER_ID, platform, external_id: `demo-${platform}`, name, avatar_url: null,
+    status: "connected", error: null, created_at: ago(1000), updated_at: ago(1000),
+  });
+  const social_accounts = [
+    acct("55555555-5555-4555-8555-555555555551", "youtube", "Clips Demo"),
+    acct("55555555-5555-4555-8555-555555555552", "tiktok", "@clipsdemo"),
+    acct("55555555-5555-4555-8555-555555555553", "instagram", "@clipsdemo"),
+    acct("55555555-5555-4555-8555-555555555554", "facebook", "Clips Demo (página)"),
+  ];
+  const publications = [
+    {
+      id: "66666666-6666-4666-8666-666666666661", user_id: DEMO_USER_ID, clip_id: S1_CLIPS[0].id,
+      account_id: social_accounts[0].id, platform: "youtube", status: "published", progress: 1,
+      title: "Se le cae el internet en la final y explota 😳 #shorts", caption: null, privacy: "public",
+      external_id: "demo123", external_url: null, error: null,
+      created_at: ago(30), updated_at: ago(29),
+    },
+  ];
+  return {
+    sources, clips: [...S1_CLIPS], transcripts, jobs: [] as Record<string, unknown>[],
+    live_watches, social_accounts, publications,
+  };
 }
 
 /** Clips que "la IA" sugiere cuando termina de procesar una fuente en la demo. */

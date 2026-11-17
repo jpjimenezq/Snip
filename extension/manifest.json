@@ -1,0 +1,27 @@
+{
+  "manifest_version": 3,
+  "name": "Snip",
+  "version": "0.1.0",
+  "description": "Clips al instante con Alt+Shift+S: directos de Kick/Twitch/YouTube y VODs, directo a tu panel Snip.",
+  "minimum_chrome_version": "110",
+  "icons": { "16": "icons/icon16.png", "48": "icons/icon48.png", "128": "icons/icon128.png" },
+  "permissions": ["storage", "activeTab", "scripting", "notifications"],
+  "host_permissions": [
+    "https://*.supabase.co/*",
+    "https://www.youtube.com/*",
+    "https://kick.com/*",
+    "https://www.twitch.tv/*"
+  ],
+  "background": { "service_worker": "background.js" },
+  "action": {
+    "default_title": "Snip: crear clip (Alt+Shift+S)",
+    "default_icon": { "16": "icons/icon16.png", "48": "icons/icon48.png" }
+  },
+  "options_page": "options.html",
+  "commands": {
+    "clip": {
+      "suggested_key": { "default": "Alt+Shift+S" },
+      "description": "Crear un clip de lo que estás viendo"
+    }
+  }
+}

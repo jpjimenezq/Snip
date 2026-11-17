@@ -14,10 +14,14 @@ import {
 } from "./data";
 
 type Row = Record<string, unknown>;
-type Table = "sources" | "clips" | "transcripts" | "jobs";
+type Table = string;
 type Event = "INSERT" | "UPDATE" | "DELETE";
 
-const db = initialDemoState() as unknown as Record<Table, Row[]>;
+const store = initialDemoState() as unknown as Record<Table, Row[]>;
+// Cualquier tabla nueva existe vacía en la demo.
+const db = new Proxy(store, {
+  get: (target, key: string) => (target[key] ??= []),
+});
 const clone = <T,>(v: T): T => structuredClone(v);
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 const nowIso = () => new Date().toISOString();
@@ -58,11 +62,14 @@ function updateRow(table: Table, id: string, patch: Row): Row | undefined {
 }
 
 // ---------- query builder ----------
+type Filter = (r: Row) => boolean;
+
 class Query implements PromiseLike<{ data: unknown; error: null }> {
-  private filters: [string, unknown][] = [];
+  private filters: Filter[] = [];
   private orderBy?: { col: string; asc: boolean };
+  private max?: number;
   private mode: "many" | "single" | "maybe" = "many";
-  private op: "select" | "insert" | "update" = "select";
+  private op: "select" | "insert" | "update" | "delete" | "upsert" = "select";
   private payload?: Row | Row[];
   private cols = "*";
 
@@ -73,7 +80,36 @@ class Query implements PromiseLike<{ data: unknown; error: null }> {
     return this;
   }
   eq(col: string, val: unknown) {
-    this.filters.push([col, val]);
+    this.filters.push((r) => r[col] === val);
+    return this;
+  }
+  neq(col: string, val: unknown) {
+    this.filters.push((r) => r[col] !== val);
+    return this;
+  }
+  in(col: string, vals: unknown[]) {
+    this.filters.push((r) => vals.includes(r[col]));
+    return this;
+  }
+  is(col: string, val: unknown) {
+    this.filters.push((r) => (r[col] ?? null) === val);
+    return this;
+  }
+  gte(col: string, val: unknown) {
+    this.filters.push((r) => String(r[col]) >= String(val));
+    return this;
+  }
+  limit(n: number) {
+    this.max = n;
+    return this;
+  }
+  delete() {
+    this.op = "delete";
+    return this;
+  }
+  upsert(rows: Row | Row[]) {
+    this.op = "upsert";
+    this.payload = rows;
     return this;
   }
   order(col: string, opts?: { ascending?: boolean }) {
@@ -101,19 +137,29 @@ class Query implements PromiseLike<{ data: unknown; error: null }> {
 
   private run(): unknown {
     let rows: Row[];
-    if (this.op === "insert") {
+    if (this.op === "insert" || this.op === "upsert") {
       const list = Array.isArray(this.payload) ? this.payload : [this.payload as Row];
-      rows = list.map((r) => insertRow(this.table, r));
+      rows = list.map((r) =>
+        this.op === "upsert" && r.id && db[this.table].some((x) => x.id === r.id)
+          ? updateRow(this.table, r.id as string, r)!
+          : insertRow(this.table, r),
+      );
     } else {
-      rows = db[this.table].filter((r) => this.filters.every(([c, v]) => r[c] === v));
+      rows = db[this.table].filter((r) => this.filters.every((f) => f(r)));
       if (this.op === "update") {
         rows = rows.map((r) => updateRow(this.table, r.id as string, this.payload as Row)!);
+      }
+      if (this.op === "delete") {
+        const ids = new Set(rows.map((r) => r.id));
+        store[this.table] = db[this.table].filter((r) => !ids.has(r.id));
+        for (const r of rows) emit(this.table, "DELETE", {}, r);
       }
     }
     if (this.orderBy) {
       const { col, asc } = this.orderBy;
       rows = [...rows].sort((a, b) => (String(a[col]) < String(b[col]) ? -1 : 1) * (asc ? 1 : -1));
     }
+    if (this.max !== undefined) rows = rows.slice(0, this.max);
     let out = clone(rows);
     if (this.table === "sources" && this.cols.includes("clips(count)")) {
       out = out.map((s) => ({ ...s, clips: [{ count: db.clips.filter((c) => c.source_id === s.id).length }] }));
@@ -142,6 +188,8 @@ async function runJob(job: Row) {
     if (job.type === "generate_copy") await simCopy(payload.clip_id as string);
     if (job.type === "manual_clip") await simManual(payload as { source_id: string; at_s: number; duration_s: number });
     if (job.type === "process_source") await simProcess(payload.source_id as string);
+    if (job.type === "publish_clip") await simPublish(payload.publication_ids as string[]);
+    if (job.type === "live_clip") await simLive(payload as { url: string; duration_s: number }, job.user_id as string);
     updateRow("jobs", job.id as string, { status: "done" });
   } catch (e) {
     updateRow("jobs", job.id as string, { status: "error", error: String(e) });
@@ -177,6 +225,47 @@ async function simManual(p: { source_id: string; at_s: number; duration_s: numbe
   const clip = makeClip({
     id: crypto.randomUUID(), source_id: p.source_id, start_s: start, end_s: p.at_s,
     origin: "manual", title: `Clip manual ${t}`, created_at: nowIso(), updated_at: nowIso(),
+  });
+  insertRow("clips", clip as unknown as Row);
+  await simCopy(clip.id);
+}
+
+async function simPublish(ids: string[] = []) {
+  await Promise.all(
+    ids.map(async (id, i) => {
+      await sleep(400 * i);
+      updateRow("publications", id, { status: "uploading", progress: 0 });
+      for (let p = 0.2; p <= 1; p += 0.2) {
+        await sleep(450);
+        updateRow("publications", id, { progress: p });
+      }
+      updateRow("publications", id, { status: "processing", progress: 1 });
+      await sleep(900);
+      const ext = Math.random().toString(36).slice(2, 12);
+      updateRow("publications", id, {
+        status: "published",
+        external_id: ext,
+        // En la demo no hay enlace real: evitar mandar a páginas inexistentes.
+        external_url: null,
+      });
+    }),
+  );
+}
+
+async function simLive(p: { url: string; duration_s: number }, userId: string) {
+  const watch = db.live_watches.find((w) => w.url === p.url);
+  const channel = String(watch?.channel ?? p.url.split("/").pop());
+  const hhmm = new Date().toTimeString().slice(0, 5);
+  const src = insertRow("sources", {
+    user_id: userId, url: p.url, platform: watch?.platform ?? "kick", title: `En vivo · ${channel} · ${hhmm}`,
+    channel, duration_s: p.duration_s, status: "transcribing", progress: 0.5, error: null,
+    local_path: null, thumb_path: MEDIA.thumb,
+  });
+  await sleep(1500);
+  updateRow("sources", src.id as string, { status: "ready", progress: 1 });
+  const clip = makeClip({
+    id: crypto.randomUUID(), source_id: src.id as string, start_s: 0, end_s: p.duration_s,
+    origin: "hotkey", title: `Clip en vivo de ${channel}`, created_at: nowIso(), updated_at: nowIso(),
   });
   insertRow("clips", clip as unknown as Row);
   await simCopy(clip.id);
@@ -251,6 +340,7 @@ export function createDemoClient() {
       };
       return ch;
     },
+    rpc: async () => ({ data: null, error: null }),
     removeChannel(ch: object) {
       listeners = listeners.filter((l) => l.channel !== ch);
       return Promise.resolve("ok");

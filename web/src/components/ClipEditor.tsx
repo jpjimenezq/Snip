@@ -10,7 +10,9 @@ import type { Clip, Copies, Layout, SubtitleStyle, TranscriptSegment } from "@/l
 import { getSignedUrl, useSignedUrl } from "@/lib/useSignedUrl";
 import { OriginBadge, ProgressBar, ScoreBadge, StatusChip } from "./Badges";
 import { CopiesEditor } from "./CopiesEditor";
+import { PublishPanel } from "./PublishPanel";
 import { LayoutEditor } from "./LayoutEditor";
+import { ZoomEditor, ZoomTimeline } from "./ZoomEditor";
 
 const SUBTITLES: { id: SubtitleStyle; label: string }[] = [
   { id: "karaoke", label: "Karaoke" },
@@ -61,6 +63,7 @@ export function ClipEditor({ id }: { id: string }) {
   const [busy, setBusy] = useState(false);
   const [finalDl, setFinalDl] = useState<string | null>(null);
   const copiesDirty = useRef(false);
+  const videoRef = useRef<HTMLVideoElement>(null);
 
   useEffect(() => {
     const supabase = createClient();
@@ -136,7 +139,7 @@ export function ClipEditor({ id }: { id: string }) {
     }
     const { error } = await createClient()
       .from("clips")
-      .update({ start_s: start, end_s: end, layout: toContract(layout), subtitle_style: subtitle })
+      .update({ start_s: start, end_s: end, layout: toContract(layout, end - start), subtitle_style: subtitle })
       .eq("id", id);
     if (error) {
       setMsg({ ok: false, text: error.message });
@@ -214,7 +217,23 @@ export function ClipEditor({ id }: { id: string }) {
           <section className={card}>
             <h2 className="mb-3 font-semibold">Vista previa</h2>
             {previewUrl ? (
-              <video src={previewUrl} controls playsInline className="aspect-video w-full rounded-lg bg-black" />
+              <>
+                <video
+                  ref={videoRef}
+                  src={previewUrl}
+                  controls
+                  playsInline
+                  className="aspect-video w-full rounded-lg bg-black"
+                />
+                <ZoomTimeline
+                  zooms={layout.zooms ?? []}
+                  duration={end - start}
+                  auto={layout.auto_zoom}
+                  onSeek={(t) => {
+                    if (videoRef.current) videoRef.current.currentTime = t;
+                  }}
+                />
+              </>
             ) : (
               <p className="text-sm text-zinc-500">Sin vista previa disponible.</p>
             )}
@@ -267,6 +286,14 @@ export function ClipEditor({ id }: { id: string }) {
           <section className={card}>
             <h2 className="mb-3 font-semibold">Encuadre vertical</h2>
             <LayoutEditor frameUrl={frameUrl} layout={layout} onChange={setLayout} />
+            <div className="mt-5 border-t border-white/10 pt-4">
+              <ZoomEditor
+                layout={layout}
+                onChange={setLayout}
+                duration={end - start}
+                getCurrentTime={() => videoRef.current?.currentTime ?? null}
+              />
+            </div>
           </section>
 
           <section className={card}>
@@ -309,9 +336,6 @@ export function ClipEditor({ id }: { id: string }) {
             <button onClick={saveCopies} disabled={busy} className={`${btn} bg-white/10 hover:bg-white/15`}>
               Guardar copies
             </button>
-            <button disabled className={`${btn} bg-white/5 text-zinc-500`}>
-              Publicar (próximamente)
-            </button>
           </div>
         </div>
         <CopiesEditor
@@ -322,6 +346,11 @@ export function ClipEditor({ id }: { id: string }) {
             setCopies(c);
           }}
         />
+      </section>
+
+      <section className={card}>
+        <h2 className="mb-3 font-semibold">Publicar en redes</h2>
+        <PublishPanel key={copiesRev} clip={{ ...clip, copies }} />
       </section>
     </div>
   );

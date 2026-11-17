@@ -20,7 +20,9 @@ export type JobType =
   | "process_source"
   | "render_clip"
   | "generate_copy"
-  | "manual_clip";
+  | "manual_clip"
+  | "live_clip"
+  | "publish_clip";
 
 export interface Source {
   id: string;
@@ -48,10 +50,22 @@ export interface Region {
 
 export type LayoutPreset = "fill" | "fit_blur" | "split";
 
+/** Zoom "punch-in"; segundos relativos al inicio del clip. */
+export interface Zoom {
+  start: number;
+  end: number;
+  scale: number;
+}
+
 export interface Layout {
   preset: LayoutPreset;
   regions: Region[];
   split_ratio?: number;
+  /** fill y split: la región sigue la cara más grande dentro de ella. */
+  track_face?: boolean;
+  zooms?: Zoom[];
+  /** El worker agrega zooms en picos de audio. */
+  auto_zoom?: boolean;
 }
 
 export interface YouTubeCopy {
