@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { createClient } from "@/lib/supabase/client";
+import { IS_DEMO, createClient } from "@/lib/supabase/client";
 
 export function Nav() {
   const router = useRouter();
@@ -17,8 +17,13 @@ export function Nav() {
         <Link href="/" className="flex items-center gap-2 text-lg font-bold tracking-tight">
           <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-accent text-sm text-white">✂</span>
           Snip
+          {IS_DEMO && (
+            <span className="rounded-md bg-amber-400/15 px-2 py-0.5 text-xs font-semibold text-amber-300">
+              DEMO
+            </span>
+          )}
         </Link>
-        <button onClick={logout} className="rounded-lg px-3 py-1.5 text-sm text-zinc-400 hover:bg-white/5 hover:text-zinc-100">
+        <button onClick={logout} hidden={IS_DEMO} className="rounded-lg px-3 py-1.5 text-sm text-zinc-400 hover:bg-white/5 hover:text-zinc-100">
           Salir
         </button>
       </div>

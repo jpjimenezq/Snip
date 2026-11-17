@@ -6,6 +6,16 @@ const PUBLIC_PATHS = ["/login"];
 
 /** Refresca la sesión y redirige a /login si no hay usuario. */
 export async function updateSession(request: NextRequest) {
+  if (process.env.NEXT_PUBLIC_SNIP_DEMO === "1") {
+    if (request.nextUrl.pathname === "/login") {
+      const url = request.nextUrl.clone();
+      url.pathname = "/";
+      url.search = "";
+      return NextResponse.redirect(url);
+    }
+    return NextResponse.next({ request });
+  }
+
   let response = NextResponse.next({ request });
 
   const supabase = createServerClient(SUPABASE_URL, SUPABASE_ANON_KEY, {

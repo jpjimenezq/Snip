@@ -39,3 +39,15 @@ Si no hay sesión, se redirige a `/login` y se vuelve a `/share` con el enlace c
 - Next 16: el antiguo `middleware.ts` se llama `src/proxy.ts` (usa `src/lib/supabase/middleware.ts`).
 - Las vistas previas/frames/finales se leen con URLs firmadas del bucket privado `clips`.
 - Los estados se actualizan en vivo con Supabase Realtime (tablas `sources`, `clips`).
+
+## Modo demo (sin Supabase)
+
+Para ver toda la interfaz con datos de ejemplo, sin login ni base de datos:
+
+```bash
+npm run dev:demo
+```
+
+Los datos viven en memoria (se reinician al recargar) y los procesos (descarga,
+transcripción, render) se simulan. Los videos de ejemplo de `public/demo/` se generan
+con el motor de render real: `worker/.venv/Scripts/python web/scripts/make-demo-media.py`.

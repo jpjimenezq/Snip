@@ -32,3 +32,6 @@ worker/data/
 # sistema
 .DS_Store
 Thumbs.db
+
+# medios del modo demo (pequeños)
+!web/public/demo/**
