@@ -229,6 +229,12 @@ HANDLERS = {
     "generate_copy": generate_copy,
 }
 
+# Fases 3 y 4 registran sus handlers en sus propios módulos.
+from . import live_jobs, publish  # noqa: E402
+
+HANDLERS.update(live_jobs.HANDLERS)
+HANDLERS.update(publish.HANDLERS)
+
 
 def _msg(exc: BaseException) -> str:
     return f"{type(exc).__name__}: {exc}"[:1500]

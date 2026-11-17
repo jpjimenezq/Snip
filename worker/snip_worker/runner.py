@@ -5,7 +5,7 @@ import logging
 import socket
 import time
 
-from . import db, jobs
+from . import db, jobs, live_recorder
 from .config import get_settings
 
 log = logging.getLogger("snip.runner")
@@ -27,6 +27,7 @@ def run_forever() -> None:
     log.info("Worker '%s' iniciado. Datos en %s. Esperando jobs cada %.0f s (Ctrl+C para salir).",
              worker_id, s.data_dir, s.poll_seconds)
     job: dict | None = None
+    live_recorder.start()
     try:
         while True:
             try:
@@ -55,6 +56,7 @@ def run_forever() -> None:
             job = None
     except KeyboardInterrupt:
         log.info("Ctrl+C recibido: cerrando el worker.")
+        live_recorder.stop()
         if job is not None:
             try:
                 db.client().table("jobs").update({"status": "pending", "worker_id": None}).eq(
