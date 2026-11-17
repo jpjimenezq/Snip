@@ -1,13 +1,16 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
+import { deleteSource, reanalyzeSource } from "@/lib/actions";
 import { createClient } from "@/lib/supabase/client";
 import type { Clip, Source } from "@/lib/types";
 import { formatDuration, formatTime } from "@/lib/time";
 import { youtubeId } from "@/lib/url";
 import { PlatformBadge, ProgressBar, StatusChip } from "./Badges";
 import { ClipCard } from "./ClipCard";
+import { ConfirmDialog, TrashIcon } from "./ConfirmDialog";
 import { ManualClipPanel } from "./ManualClipPanel";
 import { YouTubePlayer, type PlayerHandle } from "./YouTubePlayer";
 
@@ -21,6 +24,12 @@ export function SourceView({ id }: { id: string }) {
   const [loaded, setLoaded] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const player = useRef<PlayerHandle>(null);
+  const router = useRouter();
+  const [confirmDel, setConfirmDel] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [delError, setDelError] = useState<string | null>(null);
+  const [reBusy, setReBusy] = useState(false);
+  const [reMsg, setReMsg] = useState<{ ok: boolean; text: string } | null>(null);
 
   useEffect(() => {
     const supabase = createClient();
@@ -73,10 +82,39 @@ export function SourceView({ id }: { id: string }) {
   const working = !["ready", "error"].includes(source.status);
   const sorted = sortClips(clips);
 
+  async function doDelete() {
+    setDeleting(true);
+    setDelError(null);
+    try {
+      await deleteSource(id);
+      router.replace("/");
+    } catch (e) {
+      setDelError(e instanceof Error ? e.message : "No se pudo eliminar la fuente.");
+      setDeleting(false);
+    }
+  }
+
+  async function reanalyze() {
+    setReBusy(true);
+    setReMsg(null);
+    try {
+      await reanalyzeSource(id);
+      setSource((s) => (s ? { ...s, status: "analyzing", progress: 0, error: null } : s));
+      setReMsg({
+        ok: true,
+        text: "Las sugerencias de la IA se reemplazan; tus clips manuales y renderizados se conservan.",
+      });
+    } catch (e) {
+      setReMsg({ ok: false, text: e instanceof Error ? e.message : "No se pudo encolar el análisis." });
+    } finally {
+      setReBusy(false);
+    }
+  }
+
   return (
     <div className="space-y-6">
       <div>
-        <Link href="/" className="text-sm text-zinc-500 hover:text-zinc-300">
+        <Link href="/" className="inline-flex h-10 items-center text-sm text-zinc-500 hover:text-zinc-300">
           ← Fuentes
         </Link>
         <div className="mt-2 flex flex-wrap items-center gap-2">
@@ -95,7 +133,47 @@ export function SourceView({ id }: { id: string }) {
           </div>
         )}
         {source.error && <p className="mt-2 text-sm text-red-400">{source.error}</p>}
+        <div className="mt-3 flex flex-wrap gap-2">
+          {source.status === "ready" && (
+            <button
+              type="button"
+              onClick={reanalyze}
+              disabled={reBusy}
+              className="h-10 rounded-lg bg-white/10 px-4 text-sm font-semibold hover:bg-white/15 disabled:opacity-50"
+            >
+              Volver a buscar momentos
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={() => setConfirmDel(true)}
+            className="flex h-10 items-center gap-2 rounded-lg bg-red-500/10 px-4 text-sm font-semibold text-red-300 hover:bg-red-500/20"
+          >
+            <TrashIcon className="h-4 w-4" /> Eliminar fuente
+          </button>
+        </div>
+        {reMsg && <p className={`mt-2 text-sm ${reMsg.ok ? "text-emerald-400" : "text-red-400"}`}>{reMsg.text}</p>}
       </div>
+      <ConfirmDialog
+        open={confirmDel}
+        title="¿Eliminar esta fuente?"
+        busy={deleting}
+        error={delError}
+        onConfirm={doDelete}
+        onCancel={() => {
+          setConfirmDel(false);
+          setDelError(null);
+        }}
+      >
+        <p>
+          Se eliminará <strong>{source.title || source.url}</strong> junto con sus{" "}
+          <strong>
+            {clips.length} {clips.length === 1 ? "clip" : "clips"}
+          </strong>
+          , la transcripción y las publicaciones registradas. Los videos ya publicados en tus redes no se borran.
+        </p>
+        <p>Esta acción no se puede deshacer.</p>
+      </ConfirmDialog>
 
       <div className="grid gap-6 lg:grid-cols-[1fr_340px]">
         <div className="space-y-6">
@@ -117,7 +195,12 @@ export function SourceView({ id }: { id: string }) {
             ) : (
               <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
                 {sorted.map((c) => (
-                  <ClipCard key={c.id} clip={c} onSeek={yt ? (s) => player.current?.seekTo(s) : undefined} />
+                  <ClipCard
+                    key={c.id}
+                    clip={c}
+                    onSeek={yt ? (s) => player.current?.seekTo(s) : undefined}
+                    onDeleted={(cid) => setClips((cs) => cs.filter((x) => x.id !== cid))}
+                  />
                 ))}
               </div>
             )}

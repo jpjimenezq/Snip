@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { ConfirmDialog } from "./ConfirmDialog";
 import {
   PLATFORM_LABEL,
   SOCIAL_PLATFORMS,
@@ -74,17 +75,40 @@ export function AccountsPanel({ connected, error, count }: { connected?: string;
     };
   }, [load]);
 
-  async function disconnect(a: SocialAccount) {
-    if (!window.confirm(`¿Desconectar ${a.name} (${PLATFORM_LABEL[a.platform]})? Se borrarán sus tokens.`)) return;
+  const [pending, setPending] = useState<SocialAccount | null>(null);
+
+  function disconnect(a: SocialAccount) {
+    setPending(a);
+  }
+
+  async function confirmDisconnect() {
+    const a = pending;
+    if (!a) return;
     setBusy(a.id);
     const { error: err } = await createClient().from("social_accounts").delete().eq("id", a.id);
     setBusy(null);
+    setPending(null);
     if (err) setMsg(`No se pudo desconectar: ${err.message}`);
     else setAccounts((prev) => prev.filter((x) => x.id !== a.id));
   }
 
   return (
     <div className="space-y-4">
+      <ConfirmDialog
+        open={!!pending}
+        title="¿Desconectar esta cuenta?"
+        confirmLabel="Desconectar"
+        busy={!!busy}
+        onConfirm={confirmDisconnect}
+        onCancel={() => setPending(null)}
+      >
+        {pending && (
+          <p>
+            Se desconecta <strong>{pending.name}</strong> ({PLATFORM_LABEL[pending.platform]}) y se borran sus permisos
+            guardados. Para volver a publicar ahí tendrás que conectarla de nuevo.
+          </p>
+        )}
+      </ConfirmDialog>
       {connected && (
         <div className="rounded-lg bg-emerald-500/10 px-3 py-2 text-sm text-emerald-300 ring-1 ring-emerald-500/30">
           {PLATFORM_LABEL[connected as SocialPlatform] ?? connected} conectado
@@ -110,12 +134,12 @@ export function AccountsPanel({ connected, error, count }: { connected?: string;
                 {ok ? (
                   <a
                     href={`/api/oauth/${p.id}/start`}
-                    className="shrink-0 rounded-lg bg-accent px-3 py-1.5 text-sm text-white hover:opacity-90"
+                    className="shrink-0 rounded-lg bg-accent px-3.5 py-2.5 text-sm text-white hover:opacity-90"
                   >
                     {mine.length ? "Reconectar / añadir" : "Conectar"}
                   </a>
                 ) : (
-                  <span className="shrink-0 rounded-lg bg-white/5 px-3 py-1.5 text-sm text-zinc-400">No configurado</span>
+                  <span className="shrink-0 rounded-lg bg-white/5 px-3.5 py-2.5 text-sm text-zinc-400">No configurado</span>
                 )}
               </div>
               {!ok && (
@@ -144,7 +168,7 @@ export function AccountsPanel({ connected, error, count }: { connected?: string;
                       type="button"
                       disabled={busy === a.id}
                       onClick={() => disconnect(a)}
-                      className="rounded-md bg-white/5 px-2 py-1 text-xs text-zinc-300 hover:bg-red-500/20 hover:text-red-300 disabled:opacity-50"
+                      className="min-h-10 rounded-md bg-white/5 px-3 text-xs text-zinc-300 hover:bg-red-500/20 hover:text-red-300 disabled:opacity-50"
                     >
                       Desconectar
                     </button>

@@ -38,7 +38,7 @@ function TimeField({ label, value, onChange }: { label: string; value: number; o
     <div className="min-w-0 flex-1">
       <span className="mb-0.5 block text-[11px] text-zinc-500">{label}</span>
       <div className="flex items-center gap-1">
-        <button type="button" onClick={() => onChange(value - 0.5)} className="h-9 w-9 shrink-0 rounded-lg bg-white/5 hover:bg-white/10">
+        <button type="button" onClick={() => onChange(value - 0.5)} className="h-10 w-10 shrink-0 rounded-lg bg-white/5 hover:bg-white/10">
           −
         </button>
         <input
@@ -47,9 +47,9 @@ function TimeField({ label, value, onChange }: { label: string; value: number; o
           min={0}
           value={Number.isFinite(value) ? value : ""}
           onChange={(e) => onChange(parseFloat(e.target.value))}
-          className="h-9 w-full min-w-0 rounded-lg border border-white/10 bg-bg px-1 text-center text-sm outline-none focus:border-accent"
+          className="h-10 w-full min-w-0 rounded-lg border border-white/10 bg-bg px-1 text-center text-sm outline-none focus:border-accent"
         />
-        <button type="button" onClick={() => onChange(value + 0.5)} className="h-9 w-9 shrink-0 rounded-lg bg-white/5 hover:bg-white/10">
+        <button type="button" onClick={() => onChange(value + 0.5)} className="h-10 w-10 shrink-0 rounded-lg bg-white/5 hover:bg-white/10">
           +
         </button>
       </div>
@@ -118,7 +118,7 @@ export function ZoomEditor({
       <div>
         <div className="mb-2 flex items-center justify-between gap-2">
           <h3 className="text-sm font-semibold text-zinc-300">Zooms manuales</h3>
-          <button type="button" onClick={add} className="rounded-lg bg-white/10 px-3 py-1.5 text-sm hover:bg-white/15">
+          <button type="button" onClick={add} className="rounded-lg bg-white/10 px-3.5 py-2.5 text-sm hover:bg-white/15">
             Agregar zoom aquí
           </button>
         </div>
@@ -137,7 +137,7 @@ export function ZoomEditor({
                     type="button"
                     onClick={() => setZooms(zooms.filter((_, j) => j !== i))}
                     aria-label="Eliminar zoom"
-                    className="h-9 rounded-lg bg-red-500/10 px-3 text-sm text-red-300 hover:bg-red-500/20"
+                    className="h-10 rounded-lg bg-red-500/10 px-3 text-sm text-red-300 hover:bg-red-500/20"
                   >
                     Eliminar
                   </button>

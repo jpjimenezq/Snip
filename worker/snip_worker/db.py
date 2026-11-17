@@ -101,6 +101,10 @@ def insert_clip(row: dict) -> dict:
     return res.data[0]
 
 
+def delete_clip(clip_id: str) -> None:
+    client().table("clips").delete().eq("id", clip_id).execute()
+
+
 def list_clips(source_id: str) -> list[dict]:
     res = client().table("clips").select("*").eq("source_id", source_id).execute()
     return res.data or []

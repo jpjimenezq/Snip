@@ -40,7 +40,7 @@ export function UrlForm({ initialUrl = "", autoFocus = false }: { initialUrl?: s
           autoFocus={autoFocus}
           inputMode="url"
           placeholder="Pega un enlace (YouTube, Kick VOD, Twitch VOD)"
-          className="h-14 flex-1 rounded-xl border border-white/10 bg-surface px-4 text-base outline-none placeholder:text-zinc-500 focus:border-accent"
+          className="h-14 w-full rounded-xl sm:flex-1 border border-white/10 bg-surface px-4 text-base outline-none placeholder:text-zinc-500 focus:border-accent"
         />
         <button
           disabled={busy || !trimmed}

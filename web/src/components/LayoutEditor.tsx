@@ -88,7 +88,7 @@ export function LayoutEditor({
             key={p.id}
             type="button"
             onClick={() => onChange(changePreset({ ...layout, regions }, p.id, nat))}
-            className={`rounded-full px-3 py-1.5 text-sm ${layout.preset === p.id ? "bg-accent text-white" : "bg-white/5 text-zinc-300 hover:bg-white/10"}`}
+            className={`rounded-full px-3.5 py-2.5 text-sm ${layout.preset === p.id ? "bg-accent text-white" : "bg-white/5 text-zinc-300 hover:bg-white/10"}`}
           >
             {p.label}
           </button>
@@ -105,7 +105,7 @@ export function LayoutEditor({
             step={0.01}
             value={ratio}
             onChange={(e) => onChange(changeRatio({ ...layout, regions }, parseFloat(e.target.value), nat))}
-            className="flex-1 accent-[#7c5cff]"
+            className="h-10 flex-1 accent-[#7c5cff]"
           />
           <span className="w-10 text-right tabular-nums">{Math.round(ratio * 100)}%</span>
         </label>
@@ -164,9 +164,10 @@ export function LayoutEditor({
                     onPointerMove={move}
                     onPointerUp={up}
                     onPointerCancel={up}
-                    className="absolute -bottom-3 -right-3 h-7 w-7 cursor-nwse-resize touch-none rounded-full border-2 border-white"
-                    style={{ background: COLORS[i] }}
-                  />
+                    className="absolute bottom-0 right-0 flex h-11 w-11 cursor-nwse-resize touch-none items-end justify-end p-1"
+                  >
+                    <span className="h-6 w-6 rounded-full border-2 border-white" style={{ background: COLORS[i] }} />
+                  </div>
                 </div>
               ))}
           </div>

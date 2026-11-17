@@ -33,3 +33,31 @@ export async function createSourceFromUrl(url: string): Promise<string> {
   if (jobErr) throw new Error(jobErr.message);
   return source_id;
 }
+
+/** Elimina una fuente; la BD borra en cascada sus clips, transcripción y publicaciones. */
+export async function deleteSource(id: string): Promise<void> {
+  const { error } = await createClient().from("sources").delete().eq("id", id);
+  if (error) throw new Error(error.message);
+}
+
+/** Elimina un clip (y sus publicaciones, en cascada). */
+export async function deleteClip(id: string): Promise<void> {
+  const { error } = await createClient().from("clips").delete().eq("id", id);
+  if (error) throw new Error(error.message);
+}
+
+/** Pide al worker volver a buscar momentos con IA (reemplaza las sugerencias de la IA). */
+export async function reanalyzeSource(id: string): Promise<void> {
+  const supabase = createClient();
+  const { error } = await supabase
+    .from("sources")
+    .update({ status: "analyzing", progress: 0, error: null })
+    .eq("id", id);
+  if (error) throw new Error(error.message);
+  try {
+    await createJob("process_source", { source_id: id, force_analysis: true });
+  } catch (e) {
+    await supabase.from("sources").update({ status: "ready", progress: 1 }).eq("id", id);
+    throw e;
+  }
+}

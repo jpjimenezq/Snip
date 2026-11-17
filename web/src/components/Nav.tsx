@@ -6,6 +6,7 @@ import { IS_DEMO, createClient } from "@/lib/supabase/client";
 
 const LINKS = [
   { href: "/", label: "Clips" },
+  { href: "/library", label: "Biblioteca" },
   { href: "/live", label: "En vivo" },
   { href: "/settings", label: "Cuentas" },
 ];
@@ -24,8 +25,8 @@ export function Nav() {
       : pathname.startsWith(href);
   return (
     <header className="sticky top-0 z-30 border-b border-white/10 bg-bg/80 backdrop-blur">
-      <div className="mx-auto flex h-14 max-w-6xl items-center gap-3 px-4">
-        <Link href="/" className="flex items-center gap-2 text-lg font-bold tracking-tight">
+      <div className="mx-auto flex h-14 max-w-6xl items-center gap-2 px-4 sm:gap-3">
+        <Link href="/" className="flex h-10 shrink-0 items-center gap-2 text-lg font-bold tracking-tight">
           <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-accent text-sm text-white">✂</span>
           <span className="hidden sm:inline">Snip</span>
           {IS_DEMO && (
@@ -34,12 +35,12 @@ export function Nav() {
             </span>
           )}
         </Link>
-        <nav className="flex flex-1 items-center gap-1">
+        <nav aria-label="Principal" className="no-scrollbar flex min-w-0 flex-1 items-center gap-1 overflow-x-auto">
           {LINKS.map((l) => (
             <Link
               key={l.href}
               href={l.href}
-              className={`rounded-lg px-2.5 py-1.5 text-sm transition ${
+              className={`flex h-10 shrink-0 items-center rounded-lg px-3 text-sm transition ${
                 active(l.href) ? "bg-white/10 text-zinc-100" : "text-zinc-400 hover:bg-white/5 hover:text-zinc-100"
               }`}
             >
@@ -50,7 +51,7 @@ export function Nav() {
         <button
           onClick={logout}
           hidden={IS_DEMO}
-          className="rounded-lg px-3 py-1.5 text-sm text-zinc-400 hover:bg-white/5 hover:text-zinc-100"
+          className="h-10 shrink-0 rounded-lg px-3 text-sm text-zinc-400 hover:bg-white/5 hover:text-zinc-100"
         >
           Salir
         </button>

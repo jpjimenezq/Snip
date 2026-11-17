@@ -61,6 +61,21 @@ function updateRow(table: Table, id: string, patch: Row): Row | undefined {
   return row;
 }
 
+/** Borra una fila y, como la BD real, sus dependientes en cascada. */
+function deleteRow(table: Table, row: Row) {
+  const id = row.id ?? row.source_id;
+  const key = table === "transcripts" ? "source_id" : "id";
+  store[table] = db[table].filter((r) => r[key] !== row[key]);
+  emit(table, "DELETE", {}, row);
+  if (table === "sources") {
+    for (const c of db.clips.filter((c) => c.source_id === id)) deleteRow("clips", c);
+    for (const t of db.transcripts.filter((t) => t.source_id === id)) deleteRow("transcripts", t);
+  }
+  if (table === "clips") {
+    for (const p of db.publications.filter((p) => p.clip_id === id)) deleteRow("publications", p);
+  }
+}
+
 // ---------- query builder ----------
 type Filter = (r: Row) => boolean;
 
@@ -150,9 +165,7 @@ class Query implements PromiseLike<{ data: unknown; error: null }> {
         rows = rows.map((r) => updateRow(this.table, r.id as string, this.payload as Row)!);
       }
       if (this.op === "delete") {
-        const ids = new Set(rows.map((r) => r.id));
-        store[this.table] = db[this.table].filter((r) => !ids.has(r.id));
-        for (const r of rows) emit(this.table, "DELETE", {}, r);
+        for (const r of rows) deleteRow(this.table, r);
       }
     }
     if (this.orderBy) {
@@ -187,7 +200,7 @@ async function runJob(job: Row) {
     if (job.type === "render_clip") await simRender(payload.clip_id as string);
     if (job.type === "generate_copy") await simCopy(payload.clip_id as string);
     if (job.type === "manual_clip") await simManual(payload as { source_id: string; at_s: number; duration_s: number });
-    if (job.type === "process_source") await simProcess(payload.source_id as string);
+    if (job.type === "process_source") await simProcess(payload.source_id as string, payload.force_analysis === true);
     if (job.type === "publish_clip") await simPublish(payload.publication_ids as string[]);
     if (job.type === "live_clip") await simLive(payload as { url: string; duration_s: number }, job.user_id as string);
     updateRow("jobs", job.id as string, { status: "done" });
@@ -272,11 +285,11 @@ async function simLive(p: { url: string; duration_s: number }, userId: string) {
 }
 
 const running = new Set<string>();
-async function simProcess(sourceId: string) {
+async function simProcess(sourceId: string, force = false) {
   if (running.has(sourceId)) return;
-  running.add(sourceId);
   const s = db.sources.find((r) => r.id === sourceId) as Source | undefined;
   if (!s) return;
+  running.add(sourceId);
   const isYt = s.platform === "youtube";
   if (!s.title) {
     updateRow("sources", sourceId, {
@@ -287,10 +300,17 @@ async function simProcess(sourceId: string) {
     });
   }
   const steps: [Source["status"], number][] = [["downloading", 6], ["transcribing", 8], ["analyzing", 4]];
-  const firstStep = Math.max(0, steps.findIndex(([st]) => st === s.status));
+  // force_analysis: solo repite el análisis y reemplaza las sugerencias de la IA
+  // (los clips manuales, de atajo o ya renderizados se conservan).
+  if (force) {
+    for (const c of db.clips.filter((c) => c.source_id === sourceId && c.origin === "ai" && c.status === "suggested")) {
+      deleteRow("clips", c);
+    }
+  }
+  const firstStep = force ? 2 : Math.max(0, steps.findIndex(([st]) => st === s.status));
   for (const [status, n] of steps.slice(firstStep)) {
     const cur = db.sources.find((r) => r.id === sourceId) as unknown as Source;
-    let p = status === cur.status ? cur.progress : 0;
+    let p = status === cur.status && !force ? cur.progress : 0;
     updateRow("sources", sourceId, { status, progress: p });
     while (p < 1) {
       await sleep(700);

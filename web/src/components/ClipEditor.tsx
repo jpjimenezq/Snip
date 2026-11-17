@@ -1,14 +1,16 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { createJob } from "@/lib/actions";
+import { createJob, deleteClip } from "@/lib/actions";
 import { normalizeLayout, toContract } from "@/lib/layout";
 import { createClient } from "@/lib/supabase/client";
 import { formatTime } from "@/lib/time";
 import type { Clip, Copies, Layout, SubtitleStyle, TranscriptSegment } from "@/lib/types";
 import { getSignedUrl, useSignedUrl } from "@/lib/useSignedUrl";
 import { OriginBadge, ProgressBar, ScoreBadge, StatusChip } from "./Badges";
+import { ConfirmDialog, TrashIcon } from "./ConfirmDialog";
 import { CopiesEditor } from "./CopiesEditor";
 import { PublishPanel } from "./PublishPanel";
 import { LayoutEditor } from "./LayoutEditor";
@@ -64,6 +66,12 @@ export function ClipEditor({ id }: { id: string }) {
   const [finalDl, setFinalDl] = useState<string | null>(null);
   const copiesDirty = useRef(false);
   const videoRef = useRef<HTMLVideoElement>(null);
+  const router = useRouter();
+  // Rango que cubre preview.mp4 (el del clip al cargar la página).
+  const [orig, setOrig] = useState<{ start: number; end: number } | null>(null);
+  const [confirmDel, setConfirmDel] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [delError, setDelError] = useState<string | null>(null);
 
   useEffect(() => {
     const supabase = createClient();
@@ -76,6 +84,7 @@ export function ClipEditor({ id }: { id: string }) {
         setClip(c);
         setStart(c.start_s);
         setEnd(c.end_s);
+        setOrig({ start: c.start_s, end: c.end_s });
         setLayout(normalizeLayout(c.layout));
         setSubtitle(c.subtitle_style);
         setCopies(c.copies ?? {});
@@ -119,6 +128,38 @@ export function ClipEditor({ id }: { id: string }) {
     [segments, start, end],
   );
 
+  // Vista previa recortada: solo se reproduce la parte de preview.mp4 que cae dentro de [start, end].
+  const o = orig ?? { start, end };
+  const ovStart = Math.max(start, o.start);
+  const ovEnd = Math.min(end, o.end);
+  const hasOverlap = Number.isFinite(ovStart) && Number.isFinite(ovEnd) && ovEnd - ovStart >= 0.2;
+  // Ventana en tiempo del video de vista previa; sin solape se reproduce completo.
+  const winStart = hasOverlap ? ovStart - o.start : 0;
+  const winEnd = hasOverlap ? ovEnd - o.start : Math.max(0, o.end - o.start);
+  const outside = Number.isFinite(start) && Number.isFinite(end) && (start < o.start - 0.05 || end > o.end + 0.05);
+  const win = useRef({ s: 0, e: 0 });
+  useEffect(() => {
+    win.current = { s: winStart, e: winEnd };
+  });
+
+  // Al cambiar el inicio, coloca el video al comienzo del tramo recortado (si no se está reproduciendo).
+  useEffect(() => {
+    const v = videoRef.current;
+    if (v && v.paused && v.readyState > 0) v.currentTime = winStart;
+  }, [winStart, previewUrl]);
+
+  // Pausa/reinicia al llegar al final del tramo recortado (bucle).
+  useEffect(() => {
+    if (!previewUrl) return;
+    const t = setInterval(() => {
+      const v = videoRef.current;
+      if (!v || v.paused) return;
+      const { s, e } = win.current;
+      if (v.currentTime >= e - 0.03 || v.currentTime < s - 0.3) v.currentTime = s;
+    }, 40);
+    return () => clearInterval(t);
+  }, [previewUrl]);
+
   if (!loaded) return <p className="text-sm text-zinc-500">Cargando...</p>;
   if (!clip)
     return (
@@ -161,6 +202,18 @@ export function ClipEditor({ id }: { id: string }) {
     }
   }
 
+  async function doDelete() {
+    setDeleting(true);
+    setDelError(null);
+    try {
+      await deleteClip(id);
+      router.replace(`/sources/${clip!.source_id}`);
+    } catch (e) {
+      setDelError(e instanceof Error ? e.message : "No se pudo eliminar el clip.");
+      setDeleting(false);
+    }
+  }
+
   const save = () => run(async () => ((await persist()) ? "Cambios guardados." : null));
 
   const render = () =>
@@ -193,7 +246,7 @@ export function ClipEditor({ id }: { id: string }) {
   return (
     <div className="space-y-6">
       <div>
-        <Link href={`/sources/${clip.source_id}`} className="text-sm text-zinc-500 hover:text-zinc-300">
+        <Link href={`/sources/${clip.source_id}`} className="inline-flex h-10 items-center text-sm text-zinc-500 hover:text-zinc-300">
           ← Fuente
         </Link>
         <div className="mt-2 flex flex-wrap items-center gap-2">
@@ -223,14 +276,32 @@ export function ClipEditor({ id }: { id: string }) {
                   src={previewUrl}
                   controls
                   playsInline
+                  onLoadedMetadata={(e) => {
+                    e.currentTarget.currentTime = win.current.s;
+                  }}
+                  onPlay={(e) => {
+                    const v = e.currentTarget;
+                    const { s, e: en } = win.current;
+                    if (v.currentTime < s - 0.05 || v.currentTime >= en - 0.05) v.currentTime = s;
+                  }}
                   className="aspect-video w-full rounded-lg bg-black"
                 />
+                {outside && (
+                  <p className="mt-2 rounded-lg bg-amber-500/10 p-2 text-xs text-amber-300">
+                    La vista previa no cubre el nuevo rango; el clip final sí lo tendrá.
+                    {!hasOverlap && " Se muestra la vista previa original completa."}
+                  </p>
+                )}
                 <ZoomTimeline
                   zooms={layout.zooms ?? []}
                   duration={end - start}
                   auto={layout.auto_zoom}
                   onSeek={(t) => {
-                    if (videoRef.current) videoRef.current.currentTime = t;
+                    const v = videoRef.current;
+                    if (!v) return;
+                    const { s, e } = win.current;
+                    // t es relativo al NUEVO inicio; el video arranca en o.start.
+                    v.currentTime = Math.min(Math.max(start + t - o.start, s), Math.max(s, e - 0.05));
                   }}
                 />
               </>
@@ -291,7 +362,11 @@ export function ClipEditor({ id }: { id: string }) {
                 layout={layout}
                 onChange={setLayout}
                 duration={end - start}
-                getCurrentTime={() => videoRef.current?.currentTime ?? null}
+                getCurrentTime={() => {
+                  const v = videoRef.current;
+                  // Relativo al NUEVO inicio del clip.
+                  return v ? Math.max(0, v.currentTime + o.start - start) : null;
+                }}
               />
             </div>
           </section>
@@ -304,7 +379,7 @@ export function ClipEditor({ id }: { id: string }) {
                   key={s.id}
                   type="button"
                   onClick={() => setSubtitle(s.id)}
-                  className={`rounded-full px-3 py-1.5 text-sm ${subtitle === s.id ? "bg-accent text-white" : "bg-white/5 text-zinc-300 hover:bg-white/10"}`}
+                  className={`rounded-full px-3.5 py-2.5 text-sm ${subtitle === s.id ? "bg-accent text-white" : "bg-white/5 text-zinc-300 hover:bg-white/10"}`}
                 >
                   {s.label}
                 </button>
@@ -322,6 +397,13 @@ export function ClipEditor({ id }: { id: string }) {
               </button>
               <button onClick={genCopy} disabled={busy} className={`${btn} bg-white/10 hover:bg-white/15`}>
                 Generar copies
+              </button>
+              <button
+                onClick={() => setConfirmDel(true)}
+                disabled={busy}
+                className={`${btn} flex items-center gap-2 bg-red-500/10 text-red-300 hover:bg-red-500/20`}
+              >
+                <TrashIcon className="h-4 w-4" /> Eliminar clip
               </button>
             </div>
             {msg && <p className={`text-sm ${msg.ok ? "text-emerald-400" : "text-red-400"}`}>{msg.text}</p>}
@@ -352,6 +434,23 @@ export function ClipEditor({ id }: { id: string }) {
         <h2 className="mb-3 font-semibold">Publicar en redes</h2>
         <PublishPanel key={copiesRev} clip={{ ...clip, copies }} />
       </section>
+      <ConfirmDialog
+        open={confirmDel}
+        title="¿Eliminar este clip?"
+        busy={deleting}
+        error={delError}
+        onConfirm={doDelete}
+        onCancel={() => {
+          setConfirmDel(false);
+          setDelError(null);
+        }}
+      >
+        <p>
+          Se eliminará <strong>{clip.title || "este clip"}</strong> con su encuadre, copies, el video renderizado y las
+          publicaciones registradas. Los videos ya publicados en tus redes no se borran.
+        </p>
+        <p>Esta acción no se puede deshacer.</p>
+      </ConfirmDialog>
     </div>
   );
 }

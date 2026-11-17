@@ -15,7 +15,8 @@ from .zoom import auto_zooms, merge_zooms
 
 log = logging.getLogger("snip.render")
 
-__all__ = ["RenderError", "probe", "extract_frame", "make_preview", "render_clip"]
+__all__ = ["RenderError", "probe", "extract_frame", "make_preview", "render_clip",
+           "render_with_fallback"]
 
 
 def _ensure_parent(path: str) -> str:
@@ -110,3 +111,21 @@ def render_clip(source_path: str, start: float, end: float, layout: dict | None,
             "-c:a", "aac", "-b:a", "160k", "-ar", "48000",
             "-movflags", "+faststart", out,
         ], duration=duration, on_progress=on_progress, cwd=tmp)
+
+
+def render_with_fallback(source_path: str, start: float, end: float, layout: dict | None,
+                         words: list[dict], subtitle_style: str, out_path: str, encoder: str,
+                         on_progress: Callable[[float], None] | None = None) -> str:
+    """render_clip con `encoder`; si falla y no era libx264, reintenta con libx264 (CPU).
+    Devuelve el codificador que se usó."""
+    try:
+        render_clip(source_path, start, end, layout, words, subtitle_style, out_path,
+                    encoder=encoder, on_progress=on_progress)
+        return encoder
+    except Exception as exc:  # noqa: BLE001
+        if encoder == "libx264":
+            raise
+        log.warning("Falló el render con %s (%s). Reintentando con libx264 (CPU)...", encoder, exc)
+        render_clip(source_path, start, end, layout, words, subtitle_style, out_path,
+                    encoder="libx264", on_progress=on_progress)
+        return "libx264"

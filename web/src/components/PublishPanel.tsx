@@ -215,7 +215,7 @@ export function PublishPanel({ clip, onPublished }: { clip: Clip; onPublished?: 
           <div className="flex flex-wrap items-center gap-3">
             <label className="flex items-center gap-2 text-sm">
               <span className="text-xs text-zinc-400">Privacidad</span>
-              <select value={privacy} onChange={(e) => setPrivacy(e.target.value as Privacy)} className="rounded-lg border border-white/10 bg-bg px-2 py-1.5 text-sm">
+              <select value={privacy} onChange={(e) => setPrivacy(e.target.value as Privacy)} className="rounded-lg border border-white/10 bg-bg px-2 py-2.5 text-sm">
                 {(Object.keys(PRIVACY_LABEL) as Privacy[]).map((k) => (
                   <option key={k} value={k}>
                     {PRIVACY_LABEL[k]}
@@ -227,7 +227,7 @@ export function PublishPanel({ clip, onPublished }: { clip: Clip; onPublished?: 
               type="button"
               onClick={publish}
               disabled={sending || selectedAccounts.length === 0}
-              className="ml-auto rounded-lg bg-accent px-4 py-2 text-sm font-medium text-white hover:opacity-90 disabled:opacity-50"
+              className="ml-auto h-10 rounded-lg bg-accent px-4 text-sm font-medium text-white hover:opacity-90 disabled:opacity-50"
             >
               {sending ? "Encolando…" : `Publicar${selectedAccounts.length ? ` (${selectedAccounts.length})` : ""}`}
             </button>

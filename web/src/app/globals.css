@@ -29,3 +29,15 @@ textarea,
 select {
   color: inherit;
 }
+
+.no-scrollbar {
+  scrollbar-width: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+html,
+body {
+  overflow-x: clip;
+}

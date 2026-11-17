@@ -23,7 +23,7 @@ function CopyButton({ text }: { text: string }) {
     }
   }
   return (
-    <button type="button" onClick={copy} className="rounded-md bg-white/5 px-2 py-1 text-xs text-zinc-300 hover:bg-white/10">
+    <button type="button" onClick={copy} className="min-h-10 rounded-md bg-white/5 px-3 text-xs text-zinc-300 hover:bg-white/10">
       {done ? "Copiado" : "Copiar"}
     </button>
   );
@@ -42,7 +42,7 @@ function Field({
   multiline?: boolean;
   rows?: number;
 }) {
-  const cls = "w-full rounded-lg border border-white/10 bg-bg px-3 py-2 text-sm outline-none focus:border-accent";
+  const cls = "w-full rounded-lg border border-white/10 bg-bg px-3 py-2.5 text-sm outline-none focus:border-accent";
   return (
     <div>
       <div className="mb-1 flex items-center justify-between">
@@ -100,7 +100,7 @@ export function CopiesEditor({ copies, onChange }: { copies: Copies; onChange: (
             key={n.id}
             type="button"
             onClick={() => setTab(n.id)}
-            className={`rounded-lg px-3 py-1.5 text-sm ${tab === n.id ? "bg-accent text-white" : "bg-white/5 text-zinc-300 hover:bg-white/10"}`}
+            className={`rounded-lg px-3.5 py-2.5 text-sm ${tab === n.id ? "bg-accent text-white" : "bg-white/5 text-zinc-300 hover:bg-white/10"}`}
           >
             {n.label}
           </button>

@@ -57,7 +57,7 @@ export function ManualClipPanel({ sourceId, disabled }: { sourceId: string; disa
               type="button"
               key={d}
               onClick={() => setDuration(d)}
-              className={`rounded-full px-3 py-1.5 text-sm ${duration === d ? "bg-accent text-white" : "bg-white/5 text-zinc-300 hover:bg-white/10"}`}
+              className={`rounded-full px-3.5 py-2.5 text-sm ${duration === d ? "bg-accent text-white" : "bg-white/5 text-zinc-300 hover:bg-white/10"}`}
             >
               {d} s
             </button>
@@ -65,7 +65,7 @@ export function ManualClipPanel({ sourceId, disabled }: { sourceId: string; disa
           <button
             type="button"
             onClick={() => setDuration("custom")}
-            className={`rounded-full px-3 py-1.5 text-sm ${duration === "custom" ? "bg-accent text-white" : "bg-white/5 text-zinc-300 hover:bg-white/10"}`}
+            className={`rounded-full px-3.5 py-2.5 text-sm ${duration === "custom" ? "bg-accent text-white" : "bg-white/5 text-zinc-300 hover:bg-white/10"}`}
           >
             Personalizado
           </button>

@@ -100,7 +100,7 @@ export function LiveWatches() {
             onChange={(e) => setUrl(e.target.value)}
             inputMode="url"
             placeholder="Canal en vivo (kick.com/canal, twitch.tv/canal o directo de YouTube)"
-            className="h-14 flex-1 rounded-xl border border-white/10 bg-surface px-4 text-base outline-none placeholder:text-zinc-500 focus:border-accent"
+            className="h-14 w-full rounded-xl sm:flex-1 border border-white/10 bg-surface px-4 text-base outline-none placeholder:text-zinc-500 focus:border-accent"
           />
           <button
             disabled={busy || !url.trim()}
@@ -134,7 +134,7 @@ export function LiveWatches() {
                 <div className="ml-auto flex items-center gap-2">
                   <button
                     onClick={() => act(() => setLiveEnabled(w.id, !w.enabled))}
-                    className="rounded-lg bg-white/10 px-3 py-1.5 text-sm transition hover:bg-white/20"
+                    className="rounded-lg bg-white/10 px-3.5 py-2.5 text-sm transition hover:bg-white/20"
                   >
                     {w.enabled ? "Pausar" : "Activar"}
                   </button>
@@ -143,7 +143,7 @@ export function LiveWatches() {
                       if (confirm(`¿Dejar de grabar ${w.channel ?? w.url} y quitarlo de la lista?`))
                         act(() => deleteLiveWatch(w.id));
                     }}
-                    className="rounded-lg bg-red-500/15 px-3 py-1.5 text-sm text-red-300 transition hover:bg-red-500/25"
+                    className="rounded-lg bg-red-500/15 px-3.5 py-2.5 text-sm text-red-300 transition hover:bg-red-500/25"
                   >
                     Eliminar
                   </button>

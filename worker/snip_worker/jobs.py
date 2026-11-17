@@ -80,8 +80,21 @@ def _segments_of(source_id: str) -> list[dict]:
 
 
 # ---------------------------------------------------------------- process_source
-def _run_pipeline(source_id: str) -> dict:
-    """Descarga → transcribe → analiza. Devuelve la fila de source actualizada."""
+def _drop_suggested_ai_clips(source_id: str) -> int:
+    """Borra los clips de IA que siguen en 'suggested' (los renderizados, manuales y de
+    atajo se conservan). Devuelve cuántos borró."""
+    n = 0
+    for c in db.list_clips(source_id):
+        if c.get("origin") == "ai" and c.get("status") == "suggested":
+            db.delete_clip(c["id"])
+            n += 1
+    return n
+
+
+def _run_pipeline(source_id: str, force_analysis: bool = False) -> dict:
+    """Descarga → transcribe → analiza. Devuelve la fila de source actualizada.
+    Con force_analysis se descartan los clips de IA sugeridos y se vuelve a analizar
+    (reutilizando la transcripción)."""
     source = db.get_source(source_id)
     s = get_settings()
 
@@ -118,8 +131,11 @@ def _run_pipeline(source_id: str) -> dict:
         db.upsert_transcript(source_id, language, text, segments)
 
     # 3) análisis con IA (no se duplica si ya hay clips de IA)
+    if force_analysis:
+        removed = _drop_suggested_ai_clips(source_id)
+        log.info("Re-análisis forzado: %d clips de IA sugeridos descartados", removed)
     already = [c for c in db.list_clips(source_id) if c.get("origin") == "ai"]
-    if already:
+    if already and not force_analysis:
         log.info("Ya hay %d clips de IA para este video; se omite el análisis", len(already))
     else:
         db.set_source_status(source_id, "analyzing", 0.0)
@@ -133,10 +149,10 @@ def _run_pipeline(source_id: str) -> dict:
     return db.get_source(source_id)
 
 
-def ensure_source_ready(source_id: str) -> dict:
+def ensure_source_ready(source_id: str, force_analysis: bool = False) -> dict:
     """Ejecuta el pipeline completo marcando el source como 'error' si falla."""
     try:
-        return _run_pipeline(source_id)
+        return _run_pipeline(source_id, force_analysis)
     except BaseException as exc:
         if isinstance(exc, KeyboardInterrupt):
             raise
@@ -145,7 +161,8 @@ def ensure_source_ready(source_id: str) -> dict:
 
 
 def process_source(job: dict) -> None:
-    ensure_source_ready(job["payload"]["source_id"])
+    p = job["payload"]
+    ensure_source_ready(p["source_id"], force_analysis=bool(p.get("force_analysis")))
 
 
 # ---------------------------------------------------------------- manual_clip
@@ -193,19 +210,10 @@ def _do_render(clip_id: str) -> None:
     db.update_clip(clip_id, status="rendering", progress=0.0, error=None)
     progress = db.clip_progress(clip_id)
 
-    def run(encoder: str) -> None:
-        render.render_clip(str(video), start, end, clip.get("layout"), words,
-                           clip.get("subtitle_style") or "karaoke", str(out),
-                           encoder=encoder, on_progress=progress)
-
     log.info("Renderizando clip %s con %s", clip_id, s.video_encoder)
-    try:
-        run(s.video_encoder)
-    except Exception as exc:
-        if s.video_encoder == "libx264":
-            raise
-        log.warning("Falló el render con %s (%s). Reintentando con libx264 (CPU)...", s.video_encoder, exc)
-        run("libx264")
+    render.render_with_fallback(str(video), start, end, clip.get("layout"), words,
+                                clip.get("subtitle_style") or "karaoke", str(out),
+                                s.video_encoder, on_progress=progress)
     db.upload_file(db.final_key(clip_id), out, "video/mp4")
     db.update_clip(clip_id, status="rendered", progress=1.0, output_path=db.final_key(clip_id), error=None)
 

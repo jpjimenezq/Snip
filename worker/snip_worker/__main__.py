@@ -1,17 +1,16 @@
 import logging
 import sys
 
+from .config import get_settings
+from .logsetup import setup_logging
 from .runner import run_forever
 
 
 def main() -> int:
-    logging.basicConfig(
-        level=logging.INFO,
-        format="%(asctime)s %(levelname)-7s %(name)s: %(message)s",
-        datefmt="%H:%M:%S",
-    )
-    for noisy in ("httpx", "httpx2", "httpcore", "hpack", "urllib3"):
-        logging.getLogger(noisy).setLevel(logging.WARNING)
+    log_dir = get_settings().data_dir / "logs"
+    used = setup_logging(log_dir)
+    if used:
+        logging.getLogger("snip").info("Log en archivo: %s", used)
     try:
         run_forever()
     except RuntimeError as exc:

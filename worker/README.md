@@ -14,7 +14,7 @@ Procesa **un job a la vez** (la GPU es chica). Los videos fuente se quedan en `S
 ## Requisitos
 
 - Windows 11, Python 3.12, `ffmpeg` y `ffprobe` en el PATH (`ffmpeg -version`).
-- GPU NVIDIA con driver reciente (para Whisper en CUDA y para NVENC).
+- GPU NVIDIA con driver reciente (para Whisper en CUDA; NVENC solo con driver 610+, si no usa `SNIP_VIDEO_ENCODER=libx264`).
 - Proyecto de Supabase con `supabase/migrations/0001_init.sql` ya ejecutada.
 
 ## Instalación
@@ -63,6 +63,41 @@ pytest
 ```
 
 No necesitan red, Supabase, GPU ni API key.
+
+## Probar sin Supabase (modo local)
+
+Corre el pipeline real (descarga, Whisper en GPU, selección de momentos, render 9:16) sin Supabase, para probar subtítulos, layouts y seguimiento de cara:
+
+```powershell
+# URL o archivo local; --start/--end limitan el rango (útil con VODs largos)
+python -m snip_worker.local "https://www.youtube.com/watch?v=XXXXXXXXXXX" --start 1:00 --end 4:00 `
+    --layout fill --track-face --auto-zoom --subs karaoke --max-clips 3
+python -m snip_worker.local entrevista.mp4 --layout split --subs simple --regions "0,0,0.5,1;0.5,0,0.5,1"
+```
+
+Opciones principales: `--layout fill|fit_blur|split`, `--subs karaoke|simple|none`, `--track-face`, `--auto-zoom`, `--max-clips N`, `--only N` (renderiza solo el momento N; sirve para probar otro layout reutilizando la transcripción guardada), `--regions "x,y,w,h;x,y,w,h"` (valores 0..1; en `split` la primera región va arriba y la segunda abajo; por defecto izquierda/derecha), `--whisper-model small`, `--device cpu`, `--language en`, `--no-ai`, `--encoder libx264|h264_nvenc`. `python -m snip_worker.local --help` lista todo.
+
+- Con `ANTHROPIC_API_KEY` en `.env` los momentos los elige Claude; sin ella usa un selector **sin IA** (picos de volumen + densidad de habla), marcado así en el log, en `resultado.json` y en la galería.
+- Todo queda en `SNIP_DATA_DIR/local/<slug>/`: el video, `transcript.json` (se reutiliza si el rango y el modelo no cambian), `clips/*.mp4` con su póster, `resultado.json` (tiempos de descarga, transcripción y render) e `index.html`, una galería con `<video>` para revisar los clips. Ábrela con doble clic.
+- Los clips de distintas ejecuciones se acumulan en el mismo `resultado.json` y galería (un archivo por número de momento y layout).
+
+## Re-analizar un video
+
+Un job `process_source` con `{"source_id": "...", "force_analysis": true}` borra los clips de IA que siguen en `suggested` (los renderizados, manuales y de atajo se conservan) y vuelve a buscar momentos reutilizando la transcripción.
+
+## Arranque automático en Windows
+
+```powershell
+.\install-autostart.ps1            # registra la tarea "Snip Worker" (al iniciar sesión, ventana oculta)
+.\install-autostart.ps1 -StartNow  # y la inicia ahora
+.\uninstall-autostart.ps1          # la elimina
+```
+
+La tarea corre `run.ps1` con tu usuario al iniciar sesión, funciona con batería, y se reinicia sola (hasta 5 veces, 1 minuto entre intentos) si el worker se cae. No necesita administrador. El worker escribe un log diario en `data\logs\worker-AAAAMMDD.log` (se conservan 14 días), también al correrlo a mano con `python -m snip_worker`.
+
+## Notas sobre directos (`live_clip`)
+
+La transcripción de un clip en directo se hace dentro del mismo bucle de jobs (un job a la vez, como todo lo demás), así que mientras Whisper trabaja no se atiende otro job. La grabación del directo (`live_recorder`) corre en sus propios hilos y no se detiene. Hacerlo no bloqueante implicaría competir por los 4 GB de VRAM con otros trabajos de Whisper; por eso se dejó así.
 
 ## Solución de problemas
 
