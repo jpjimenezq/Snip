@@ -28,7 +28,12 @@ viral y los conviertes en clips verticales con subtítulos listos para TikTok, R
 Ver `worker/README.md`. En resumen: copia `worker/.env.example` → `worker/.env`,
 llena los valores, instala dependencias y ejecuta `worker/run.ps1`.
 
-### 4. Web (Vercel)
+### 4. Usarlo en local (sin desplegar)
+Crea `web/.env.local` (URL y anon key de Supabase, `NEXT_PUBLIC_APP_URL=http://localhost:3000`) y haz doble clic en
+**`Iniciar Snip.cmd`**: compila la web si hace falta y abre la web (http://localhost:3000) y el worker en dos ventanas.
+Desde el celular funciona en la misma Wi-Fi con la IP del PC que muestra el script.
+
+### 5. Web en internet (opcional, Vercel)
 Ver `web/README.md`. En resumen: importa el repo en Vercel con **Root Directory = `web`**
 y agrega `NEXT_PUBLIC_SUPABASE_URL` y `NEXT_PUBLIC_SUPABASE_ANON_KEY`.
 
